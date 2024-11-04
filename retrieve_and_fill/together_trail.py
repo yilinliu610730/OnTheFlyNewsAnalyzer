@@ -1,8 +1,5 @@
 import os
 import sys
-from together import Together
-import together
-import together.types.chat_completions
 from datasets import load_dataset
 from tqdm import tqdm
 from typing import Union, List, Any, Dict
@@ -11,26 +8,21 @@ from tqdm import tqdm
 import openai
 openai.api_key = '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'
 
-together_api_key = "cd7b5b267e7c7118ef2a4d6b9f59898a1d1fd9ae1551fb9b627b6d5c3d7e94ca"
-os.environ["TOGETHER_API_KEY"] = together_api_key  # export TOGETHER_API_KEY=together_api_key
-client = Together()
-FIRST_RUN = False
 
-# complete list : https://api.together.ai/models.
-model_choices = [
-    "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-    "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-    "codellama/CodeLlama-70b-Instruct-hf",
-    "deepseek-ai/deepseek-coder-33b-instruct",
-    "Qwen/Qwen2-72B-Instruct",
+FIRST_RUN = False
+DATA_PATH = "./dataset/filtered_data"
+MODEL_CHOICES = [
+    "gpt-4",
+    "gpt-4-turbo",
 ]
-MODEL_NAME = model_choices[1]
+MODEL_NAME = MODEL_CHOICES[1]
 
 KEYWORD_PROMPT = f'''
 You are a virtual assistance model and you need to read the given text and generate a list of keywords that best describe the text.
-Notice you need to both summarize the text and generate a list of keywords. Your output should be easily transferable to a list
-of string in Python. Don't include any other information in the output other than the keywords.
+Notice you need to both summarize the text and generate a list of keywords, separated by commas for example: "investment, growth, innovation".
+Don't include any other information in the output other than the keywords. Max output 20 keywords. Each keyword should be in natural language,
+for instance, write "venture capital" instead of "VentureCapital" or "ventureCapital" as the later ones are not English terms.
+Finally, don't include any keyword that is too general, such as "US", "technology"; or too vague, such as "time", "people".
 '''
 
 
@@ -81,13 +73,23 @@ class FinancialTrend(ACLEDEvent, ABC):
     country: str = Field(..., description="The country of interest, here the 'U.S.'.") 
     period: str = Field(..., description="The time frame over which the financial trends are observed.")
 
-class InvestmentIncrease(FinancialTrend):
+class InvestmentReceived(FinancialTrend):
     """
     This subtype of "Financial Trend" is used when there is a significant rise in the level of investments within the technology sector. This can include increases in venture capital funding, growth in private equity stakes, or enhancements in other forms of financial injections into tech companies.
     """
     investment_type: List[str] = Field(..., description="Types of investments observed to increase such as venture capital, private equity, etc.")
     amount: float = Field(..., description="The monetary value of the investment increase.")
-    companies_involved: Optional[List[str]] = Field(None, description="List of key companies that benefited from these investments.")
+    unit: str = Field(..., description="The currency and unit in which the investment increase is measured. Such as Million USD, Billion USD, etc.")
+    companies_involved: Optional[List[str]] = Field(None, description="List of key companies that received these investments. Such as technology startups, established tech firms, etc.")
+
+class InvestmentMade(FinancialTrend):
+    """
+    This subtype of "Financial Trend" is used when there is a significant rise in the level of investments within the technology sector. This can include increases in venture capital funding, growth in private equity stakes, or enhancements in other forms of financial injections into tech companies.
+    """
+    investment_type: List[str] = Field(..., description="Types of investments observed to increase such as venture capital, private equity, etc.")
+    amount: float = Field(..., description="The monetary value of the investment increase.")
+    unit: str = Field(..., description="The currency and unit in which the investment increase is measured. Such as Million USD, Billion USD, etc.")
+    companies_involved: Optional[List[str]] = Field(None, description="List of key companies that made these investments. Such as venture capital firms, private equity funds, etc.")
 
 class MarketCapGrowth(FinancialTrend):
     """
@@ -111,12 +113,15 @@ class StockPriceFluctuation(FinancialTrend):
     impacted_companies: List[str] = Field(..., description="Companies whose stock prices have shown significant fluctuations.")
 '''
 
-SCHEMA_BY_CLASS = EXAMPLE_SCHEMA.split("class ")[1:]
-SCHEMA_BY_CLASS = [f"class {schema}" for schema in SCHEMA_BY_CLASS]
-# get the parent class combine with each child classes
-SCHEMA_BY_CLASS = [SCHEMA_BY_CLASS[0] + schema for schema in SCHEMA_BY_CLASS[1:]]
-# class name to entire class SCHEMA string
-SCHEMA_BY_CLASS = {schema.split("class ")[2].split("(")[0]: schema for schema in SCHEMA_BY_CLASS}
+# raw schema to schema by class name, with parent class combined with child classes
+def process_schema(raw_schema: str) -> Dict[str, str]:
+    schema_by_class = raw_schema.split("class ")[1:]
+    schema_by_class = [f"class {schema}" for schema in schema_by_class]
+    # get the parent class combine with each child classes
+    schema_by_class = [schema_by_class[0] + schema for schema in schema_by_class[1:]]
+    # class name to entire class SCHEMA string
+    return {schema.split("class ")[2].split("(")[0]: schema for schema in schema_by_class}
+
 
 EXAMPLE_KEYWORDS = [
     'Financial trends', 'Technology sector', 'U.S. market', 'Investment', 'Innovation',
@@ -139,51 +144,57 @@ def row_to_string(row: dict) -> str:
 
 def get_keywords(row: Union[dict, str]) -> List[str]:
     row_string = row if isinstance(row, str) else row_to_string(row)
-    stream = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    keywords_str = openai.ChatCompletion.create(
+        model="gpt-4-turbo",
         messages=[
             {"role": "system", "content": KEYWORD_PROMPT},
-            {"role": "user", "content": f"Extract the keywords from the following text: \n{row_string}"},
+            {"role": "user", "content": f"Extract the keywords from the following text: {row_string}"}
         ],
-        # stream=True,   # stream will print each token at once in generator
+        max_tokens=1000,
+        temperature=0.7
     )
-    keywords_str = stream.choices[0].message.content
+    keywords_str = keywords_str['choices'][0]['message']['content'].strip()
     keywords_lst = keywords_str.split(", ")
-    keywords_lst = [''.join([char for char in _str if char.isalnum()]) for _str in keywords_lst]
+    # keywords_lst = [''.join([char for char in _str if char.isalnum()]) for _str in keywords_lst]
+    keywords_lst = [keyword.lower() for keyword in keywords_lst]
     return keywords_lst
 
 
 # first run will take time to download, next runs will only load
-def get_dataset(year: Union[int, str], store_filter=False, from_local_path=None):
-    if from_local_path is not None:
-        return load_dataset(from_local_path)
+def get_dataset(year: Union[int, str], store_and_filter=False):
     dataset = load_dataset("stanford-oval/ccnews", name=str(year))  # name: [2016 ... 2024]
     dataset = dataset.filter(lambda x: x["language"] == "en")
     dataset = dataset.select_columns(["plain_text", "title", "categories", "tags", "published_date"])
-    if store_filter:
-        dataset.save_to_disk(f"./dataset/filtered_data")
+    if store_and_filter:
+        dataset.save_to_disk(DATA_PATH)
     return dataset
 
 
 # Print information about the dataset
-dataset = get_dataset(year=2024, store_filter=True, from_local_path=None) if FIRST_RUN \
-    else load_dataset("./dataset/filtered_data")
+try:
+    dataset = load_dataset(DATA_PATH)
+except:
+    dataset = get_dataset(year=2024, store_and_filter=True)  # download, process, store
 
-
-dataset.load_from_disk(f"./dataset/filtered_data")
 dataset = dataset["train"]
-print(dataset)  # 9,970,029    still 10M articles after filtering
-print(type(dataset))
+print(dataset)        # 9,970,029    still 10M articles after filtering
+print(f"{type(dataset) = }")
 
 
+def count_keyword_occurences(text: str, keywords: List[str]) -> int:
+    occurrences = 0
+    for keyword in keywords:
+        if keyword in text:
+            occurrences += 1
+    return occurrences
 
 # given a schema + keywords input, first retrieve 10 articles from database, then see if
 # the schema can be filled by the articles.
 def get_schema_filled(
     schema_by_class: Dict[str, str],
-    keywords: List[str],
+    general_keywords: List[str],
     min_occurrences: int = 3,
-    max_articles: int = 5,
+    max_articles: int = 20,
 ) -> Dict[str, Any]:
     # iterate through the articles, if there are > 3 keywords present in the content,
     # use the article stop until finding 10 articles
@@ -192,27 +203,24 @@ def get_schema_filled(
         if len(articles) >= max_articles:
             break
         article_contents = row_to_string(row)
-        occurrences = 0
-        for keyword in keywords:
-            if keyword in article_contents:
-                occurrences += 1
-        if occurrences >= min_occurrences:
+        if count_keyword_occurences(article_contents, general_keywords) > min_occurrences:
             articles.append(article_contents)
+
     print(f"Found {len(articles)} relevant articles after scanning {i} articles.")
         
-    filled_schemas_by_class = defaultdict(list) # class name to filledd schema (string in format of class obj)
+    # class to article index to filled schema
+    filled_schemas_by_class = {}
     for schema_class, schema in schema_by_class.items():
-        for article in tqdm(articles):
-            # filled_schema = client.chat.completions.create(
-            #     model=MODEL_NAME,
-            #     messages=[
-            #         {"role": "system", "content": FILL_SCHEMA_PROMPT},
-            #         {"role": "user", "content": f"Schema: {schema}\nArticles: {article}"},
-            #     ],
-            # )
-            # filled_schema = filled_schema.choices[0].message.content
+        schema_specific_keywords = get_keywords(schema)
+        article_to_filled_schema = {}
+        for i, article in tqdm(enumerate(articles)):
 
-            refine_response = openai.ChatCompletion.create(
+            # L2 retrieval, need to satisfy narrowed down keywords
+            if count_keyword_occurences(article, schema_specific_keywords) < 1:
+                print("not satisfying schema specific keywords")
+                continue
+
+            filled_schema = openai.ChatCompletion.create(
                 model="gpt-4-turbo",
                 messages=[
                     {"role": "system", "content": FILL_SCHEMA_PROMPT},
@@ -221,13 +229,17 @@ def get_schema_filled(
                 max_tokens=1000,
                 temperature=0.7
             )
-            filled_schema = refine_response['choices'][0]['message']['content'].strip()
-            filled_schemas_by_class[schema_class].append(filled_schema)
-
+            filled_schema = filled_schema['choices'][0]['message']['content'].strip()
+            article_to_filled_schema[i] = filled_schema
+        filled_schemas_by_class[schema_class] = article_to_filled_schema
     return filled_schemas_by_class
 
 
-filled_schema = get_schema_filled(SCHEMA_BY_CLASS, EXAMPLE_KEYWORDS)
+filled_schema = get_schema_filled(
+    process_schema(EXAMPLE_SCHEMA),
+    EXAMPLE_KEYWORDS
+)
+
 for schema_class, filled_schemas in filled_schema.items():
     print(f"Schema class: {schema_class}")
     for filled_schema in filled_schemas:
