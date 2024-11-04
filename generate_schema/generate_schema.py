@@ -133,7 +133,7 @@ def generate_initial_schema(user_input):
 # Function to generate keywords based on user input
 def generate_keywords(user_input):
     response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are an assistant that generates relevant keywords."},
             {"role": "user", "content": f"Extract 10 relevant keywords based on the following input:\n\nUser Input: {user_input}"}
