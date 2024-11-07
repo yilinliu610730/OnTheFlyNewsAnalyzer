@@ -2,7 +2,7 @@ import os
 import sys
 from datasets import load_dataset
 from tqdm import tqdm
-from typing import Union, List, Any, Dict
+from typing import Union, List, Any, Dict, Tuple
 from collections import defaultdict
 from tqdm import tqdm
 import openai
@@ -122,12 +122,19 @@ def process_schema(raw_schema: str) -> Dict[str, str]:
     # class name to entire class SCHEMA string
     return {schema.split("class ")[2].split("(")[0]: schema for schema in schema_by_class}
 
+def process_keywords(keywords: str) -> List[str]:
+    return [word.lower() for word in keywords]
 
-EXAMPLE_KEYWORDS = [
-    'Financial trends', 'Technology sector', 'U.S. market', 'Investment', 'Innovation',
-    'Growth rates', 'Market analysis', 'Tech startups', 'Venture capital', 'Economic impact'
+EXAMPLE_L0_KEYWORDS = [
+    'u.s.', 'tech'
 ]
-EXAMPLE_KEYWORDS = [keyword.lower() for keyword in EXAMPLE_KEYWORDS]
+# print(process_keywords(EXAMPLE_L0_KEYWORDS))
+# breakpoint()
+EXAMPLE_L1_KEYWORDS = [
+    'Financial', 'trends', 'Technology sector', 'market', 'Investment', 'Innovation',
+    'Growth', 'Market analysis', 'startups', 'Venture capital', 'Economic', 'stock',
+    'revenue'
+]
 
 # class MessageRole(str, Enum):
 #     ASSISTANT = "assistant"
@@ -188,38 +195,73 @@ def count_keyword_occurences(text: str, keywords: List[str]) -> int:
             occurrences += 1
     return occurrences
 
+def satisfy_l0_keywords(text: str, keywords: List[str]) -> bool:
+    for keyword in keywords:
+        if keyword not in text:
+            return False
+    return True
+
+# in-place edit
+def ask_user_response(filled_schemas_by_class: Dict[str, Dict[int, Tuple[str, str]]]) -> None:
+    for schema_class, filled_schemas in filled_schemas_by_class.items():
+        print(f"\n\n*** Starting response collection for schema class: {schema_class} ***")
+        for article_index, (filled_schema, _) in filled_schemas.items():
+            article_content = row_to_string(dataset[article_index])
+            user_response = input(
+                f'''Please provide feedback for the filled schema for article:\n{article_content}\nfilled schma: {filled_schema}\n
+                Please put "no" or "n" or "none" if you don't have any feedback.
+                '''
+            )
+            if user_response.lower() not in ["no", "n", "none"]:
+                filled_schemas[article_index] = (filled_schema, user_response)
+
 # given a schema + keywords input, first retrieve 10 articles from database, then see if
 # the schema can be filled by the articles.
 def get_schema_filled(
-    schema_by_class: Dict[str, str],
-    general_keywords: List[str],
+    schema: str,
+    dataset,
+    L0_keywords: List[str],
+    L1_keywords: List[str],
     min_occurrences: int = 3,
-    max_articles: int = 5,
-) -> Dict[str, Any]:
+    max_articles: int = 3,
+    ask_user: bool = True
+) -> Dict[str, Dict[int, Tuple[str, str]]]:
+    
+    schema_by_class = process_schema(schema)    
+    L0_keywords = process_keywords(L0_keywords)
+    L1_keywords = process_keywords(L1_keywords)
+
+
+    # output is a dictionary key being schema class name, value being a dictionary with key being article index
+    # and value being a tuple of (filled schema, user response)
+
     # iterate through the articles, if there are > 3 keywords present in the content,
     # use the article stop until finding 10 articles
 
     # article index to article content
     articles: Dict[int, str] = {}
     for i, row in tqdm(enumerate(dataset)):
+        article_contents = row_to_string(row)
         if len(articles) >= max_articles:
             break
-        article_contents = row_to_string(row)
-        if count_keyword_occurences(article_contents, general_keywords) > min_occurrences:
+        if not satisfy_l0_keywords(article_contents, L0_keywords):
+            continue
+        if count_keyword_occurences(article_contents, L1_keywords) > min_occurrences:
             articles[i] = article_contents
 
     print(f"Found {len(articles)} relevant articles after scanning {i} articles.")
         
     # class to article index to filled schema
     filled_schemas_by_class = {}
+    default_user_response = "No feedback provided."
     for schema_class, schema in schema_by_class.items():
-        schema_specific_keywords = get_keywords(schema)
+        L2_keywords = get_keywords(schema)
         article_to_filled_schema = {}
         for article_index, article in tqdm(articles.items()):
 
             # L2 retrieval, need to satisfy narrowed down keywords
-            if count_keyword_occurences(article, schema_specific_keywords) < 1:
-                print("not satisfying schema specific keywords")
+            if count_keyword_occurences(article, L2_keywords) < 1:
+                print("not satisfying schema specific (L2) keywords")
                 continue
 
             filled_schema = openai.ChatCompletion.create(
@@ -232,23 +274,33 @@ def get_schema_filled(
                 temperature=0.7
             )
             filled_schema = filled_schema['choices'][0]['message']['content'].strip()
-            article_to_filled_schema[article_index] = filled_schema
+            article_to_filled_schema[article_index] = (filled_schema, default_user_response)
         filled_schemas_by_class[schema_class] = article_to_filled_schema
+    
+    if ask_user:
+        ask_user_response(filled_schemas_by_class)
+
     return filled_schemas_by_class
 
-
 filled_schemas_by_class = get_schema_filled(
-    process_schema(EXAMPLE_SCHEMA),
-    EXAMPLE_KEYWORDS
+    EXAMPLE_SCHEMA,
+    dataset,
+    EXAMPLE_L0_KEYWORDS,
+    EXAMPLE_L1_KEYWORDS,
+    min_occurrences=3,
+    max_articles=5,
+    ask_user=True
 )
+
 
 
 output_str_to_write = ""
 for schema_class, filled_schemas in filled_schemas_by_class.items():
     output_str_to_write += f"Schema class: {schema_class}"
-    for article_index, filled_schema in filled_schemas.items():
+    for article_index, (filled_schema, user_response) in filled_schemas.items():
         output_str_to_write += "\n" + row_to_string(dataset[article_index])
         output_str_to_write += filled_schema
+        output_str_to_write += "\n" + f"{user_response = }"
     output_str_to_write += "\n\n"
 
 with open("filled_schemas.txt", "w") as f:
