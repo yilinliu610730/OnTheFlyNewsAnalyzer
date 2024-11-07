@@ -305,7 +305,6 @@ def refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_in
 def generate_schema_with_levels(user_input):
     # Step 1: Generate Initial Schema
     initial_schema = generate_initial_schema(user_input)
-    print(initial_schema)
     
     # Step 2: Generate L0 Keywords based on User Input
     L0_keywords = generate_L0_keywords(user_input)
