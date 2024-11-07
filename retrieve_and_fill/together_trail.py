@@ -194,17 +194,19 @@ def get_schema_filled(
     schema_by_class: Dict[str, str],
     general_keywords: List[str],
     min_occurrences: int = 3,
-    max_articles: int = 20,
+    max_articles: int = 5,
 ) -> Dict[str, Any]:
     # iterate through the articles, if there are > 3 keywords present in the content,
     # use the article stop until finding 10 articles
-    articles: List[str] = []
+
+    # article index to article content
+    articles: Dict[int, str] = {}
     for i, row in tqdm(enumerate(dataset)):
         if len(articles) >= max_articles:
             break
         article_contents = row_to_string(row)
         if count_keyword_occurences(article_contents, general_keywords) > min_occurrences:
-            articles.append(article_contents)
+            articles[i] = article_contents
 
     print(f"Found {len(articles)} relevant articles after scanning {i} articles.")
         
@@ -213,7 +215,7 @@ def get_schema_filled(
     for schema_class, schema in schema_by_class.items():
         schema_specific_keywords = get_keywords(schema)
         article_to_filled_schema = {}
-        for i, article in tqdm(enumerate(articles)):
+        for article_index, article in tqdm(articles.items()):
 
             # L2 retrieval, need to satisfy narrowed down keywords
             if count_keyword_occurences(article, schema_specific_keywords) < 1:
@@ -230,18 +232,24 @@ def get_schema_filled(
                 temperature=0.7
             )
             filled_schema = filled_schema['choices'][0]['message']['content'].strip()
-            article_to_filled_schema[i] = filled_schema
+            article_to_filled_schema[article_index] = filled_schema
         filled_schemas_by_class[schema_class] = article_to_filled_schema
     return filled_schemas_by_class
 
 
-filled_schema = get_schema_filled(
+filled_schemas_by_class = get_schema_filled(
     process_schema(EXAMPLE_SCHEMA),
     EXAMPLE_KEYWORDS
 )
 
-for schema_class, filled_schemas in filled_schema.items():
-    print(f"Schema class: {schema_class}")
-    for filled_schema in filled_schemas:
-        print(filled_schema)
-        print("\n\n")
+
+output_str_to_write = ""
+for schema_class, filled_schemas in filled_schemas_by_class.items():
+    output_str_to_write += f"Schema class: {schema_class}"
+    for article_index, filled_schema in filled_schemas.items():
+        output_str_to_write += "\n" + row_to_string(dataset[article_index])
+        output_str_to_write += filled_schema
+    output_str_to_write += "\n\n"
+
+with open("filled_schemas.txt", "w") as f:
+    f.write(output_str_to_write)
