@@ -186,7 +186,7 @@ def generate_initial_schema(user_input):
             {"role": "system", "content": "You are an expert schema generator."},
             {"role": "user", "content": instructions + example_schema + f"\nUser: {user_input}"}
         ],
-        max_tokens=1000,
+        max_tokens=5000,
         temperature=0.7
     )
     initial_schema = response['choices'][0]['message']['content'].strip()
@@ -223,7 +223,7 @@ def generate_L0_keywords(user_input):
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are an assistant that generates relevant keywords for initial input."},
-            {"role": "user", "content": f"Extract 5 relevant keywords based on the following input:\n\nUser Input: {user_input}.  Keywords should be in format keyword 1, keyword 2, ..."}
+            {"role": "user", "content": f"Extract 3 relevant keywords based on the following input:\n\nUser Input: {user_input}.  Keywords should be in format keyword 1, keyword 2, ..."}
         ],
         max_tokens=50,
         temperature=0.5
@@ -280,7 +280,7 @@ def refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_in
                 {"role": "system", "content": "You are an expert schema generator."},
                 {"role": "user", "content": refine_schema_prompt}
             ],
-            max_tokens=1000,
+            max_tokens=5000,
             temperature=0.7
         )
         
@@ -299,17 +299,23 @@ def refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_in
         keywords_file.write(f"L1: {sorted(all_L1_keywords)}\n")  # Sort for consistency
     print("Keywords saved to keywords.txt in the specified format.")
 
+    return initial_schema, L0_keywords, sorted(all_L1_keywords)
+
 # Main function to execute the schema generation process with levels
 def generate_schema_with_levels(user_input):
     # Step 1: Generate Initial Schema
     initial_schema = generate_initial_schema(user_input)
+    print(initial_schema)
     
     # Step 2: Generate L0 Keywords based on User Input
     L0_keywords = generate_L0_keywords(user_input)
     
     # Step 3: Refine Schema with L1 Keywords from Follow-Up Answers
-    refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_input)  
+    schema, L0_keywords, L1_keywords = refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_input)  
 
-# Example: User prompt to generate a schema for financial trends in the technology sector
-user_query = "What are the financial trends in the technology sector in the U.S.?"
-generate_schema_with_levels(user_query)
+    return schema, L0_keywords, L1_keywords
+
+if __name__ == "__main__":
+    # Example: User prompt to generate a schema for financial trends in the technology sector
+    user_query = "What are the financial trends in the technology sector in the U.S.?"
+    generate_schema_with_levels(user_query)
