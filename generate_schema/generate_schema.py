@@ -212,5 +212,5 @@ def generate_schema(user_input):
     refine_schema(initial_schema, keywords, user_input)  
 
 # Example: User prompt to generate a schema for financial trends in the technology sector
-# user_query = "What are the financial trends in the technology sector in the U.S.?"
-# generate_schema(user_query)
+user_query = "What are the financial trends in the technology sector in the U.S.?"
+generate_schema(user_query)
