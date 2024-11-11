@@ -1,3 +1,4 @@
 retrieve_and_fill/dataset/filtered_data/train/*
 retrieve_and_fill/*.txt
+dataset/filtered_data/train/*
 *.txt

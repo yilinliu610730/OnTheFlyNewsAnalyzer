@@ -8,27 +8,24 @@
 
 from generate_schema.generate_schema import generate_schema, initial_prompt
 from refine_schema.refine import refine_schema_with_instance_feedback
-from retrieve_and_fill.retrieve_and_fill import get_schema_filled, get_dataset, DATA_PATH, row_to_string
+from retrieve_and_fill.retrieve_and_fill import get_schema_filled, get_dataset, row_to_string
 from retrieve_and_fill.retrieve_and_fill import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
 from datasets import load_dataset
 
 class SchemaGenerator():
     
     def __init__(self):
-        try:
-            self.dataset = load_dataset(DATA_PATH)
-        except:
-            self.dataset = get_dataset(year=2024, store_and_filter=True)  # download, process, store
+        DATA_PATH = "./dataset/filtered_data"
+        self.dataset = load_dataset(DATA_PATH)['train']
 
     def run_single(self):
-        while True:
-            user_query_input = input("What's the topic you want to generate a schema for? ")
-            schema = generate_schema(user_query_input)
-            print("Generated schema:", schema)
-            user_feedback = input("Confirm if you want to start retrieval with this schema? (yes/no)")
-            if user_feedback.lower() in ["yes", "y"]:
-                break
-        
+        # while True:
+        #     user_query_input = input("What's the topic you want to generate a schema for? ")
+        #     schema = generate_schema(user_query_input)
+        #     print("Generated schema:", schema)
+        #     user_feedback = input("Confirm if you want to start retrieval with this schema? (yes/no)")
+        #     if user_feedback.lower() in ["yes", "y"]:
+        #         break
         filled_schemas_by_class = get_schema_filled(
             EXAMPLE_SCHEMA,  # later change to real schema
             self.dataset,
@@ -42,11 +39,13 @@ class SchemaGenerator():
         for schema_class, filled_schemas in filled_schemas_by_class.items():
             refined_schema = refine_schema_with_instance_feedback(
                 initial_prompt,
-                initial_schema=schema,
+                initial_schema=EXAMPLE_SCHEMA,  # later change to real schema
                 filled_schemas=filled_schemas,
                 dataset=self.dataset
             )
             refined_schemas.append(refined_schema)
+        for refined_schema in refined_schemas:
+            print("Refined schema:", refined_schema)
 
     def run(self):
         while True:

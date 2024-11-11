@@ -10,9 +10,9 @@ openai.api_key = 'sk-proj-p4hMsuButsFzQqPGI2YZMxAxCPGim0WuL0uYG81bv1XnH1nbIfC3AM
 
 
 FIRST_RUN = False
-DATA_PATH = "./dataset/filtered_data"
+DATA_PATH = "../dataset/filtered_data"
 MODEL_CHOICES = [
-    "gpt-4",
+    "gpt-4o",
     "gpt-4-turbo",
 ]
 MODEL_NAME = MODEL_CHOICES[1]
@@ -55,7 +55,7 @@ but with fields from both parent and child classes. Filled with actual informati
         victims=["Alice", "Bob"]
     )
 
-If you can't find any information, leave the ... as is. Fill as much fields as you can, but only fill the attributes that you can find in the articles.
+If you can't find any information, leave the field empty. Fill as much fields as you can, but only fill the attributes that you can find in the articles.
 Don't change the schema format or anything else from the Schema defintion such as class name, attribute names, attribute types, etc.
 Don't include any other information in the output other than the filled schema, no explanation needed.
 '''
@@ -113,6 +113,8 @@ class StockPriceFluctuation(FinancialTrend):
     impacted_companies: List[str] = Field(..., description="Companies whose stock prices have shown significant fluctuations.")
 '''
 
+# add openai structured-output
+
 # raw schema to schema by class name, with parent class combined with child classes
 def process_schema(raw_schema: str) -> Dict[str, str]:
     schema_by_class = raw_schema.split("class ")[1:]
@@ -128,19 +130,12 @@ def process_keywords(keywords: str) -> List[str]:
 EXAMPLE_L0_KEYWORDS = [
     'u.s.', 'tech'
 ]
-# print(process_keywords(EXAMPLE_L0_KEYWORDS))
-# breakpoint()
+
 EXAMPLE_L1_KEYWORDS = [
     'Financial', 'trends', 'Technology sector', 'market', 'Investment', 'Innovation',
     'Growth', 'Market analysis', 'startups', 'Venture capital', 'Economic', 'stock',
     'revenue'
 ]
-
-# class MessageRole(str, Enum):
-#     ASSISTANT = "assistant"
-#     SYSTEM = "system"
-#     USER = "user"
-#     TOOL = "tool"
 
 def row_to_string(row: dict) -> str:
     out_string = ''
@@ -168,25 +163,13 @@ def get_keywords(row: Union[dict, str]) -> List[str]:
 
 
 # first run will take time to download, next runs will only load
-def get_dataset(year: Union[int, str], store_and_filter=False):
+def get_dataset(year: Union[int, str], store_and_filter=False, data_path=None):
     dataset = load_dataset("stanford-oval/ccnews", name=str(year))  # name: [2016 ... 2024]
     dataset = dataset.filter(lambda x: x["language"] == "en")
     dataset = dataset.select_columns(["plain_text", "title", "categories", "tags", "published_date"])
-    if store_and_filter:
-        dataset.save_to_disk(DATA_PATH)
+    if store_and_filter and data_path is not None:
+        dataset.save_to_disk(data_path)
     return dataset
-
-
-# Print information about the dataset
-try:
-    dataset = load_dataset(DATA_PATH)
-except:
-    dataset = get_dataset(year=2024, store_and_filter=True)  # download, process, store
-
-dataset = dataset["train"]
-print(dataset)        # 9,970,029    still 10M articles after filtering
-print(f"{type(dataset) = }")
-
 
 def count_keyword_occurences(text: str, keywords: List[str]) -> int:
     occurrences = 0
@@ -202,7 +185,7 @@ def satisfy_l0_keywords(text: str, keywords: List[str]) -> bool:
     return True
 
 # in-place edit
-def ask_user_response(filled_schemas_by_class: Dict[str, Dict[int, Tuple[str, str]]]) -> None:
+def ask_user_response(filled_schemas_by_class: Dict[str, Dict[int, Tuple[str, str]]], dataset) -> None:
     for schema_class, filled_schemas in filled_schemas_by_class.items():
         print(f"\n\n*** Starting response collection for schema class: {schema_class} ***")
         for article_index, (filled_schema, _) in filled_schemas.items():
@@ -278,30 +261,44 @@ def get_schema_filled(
         filled_schemas_by_class[schema_class] = article_to_filled_schema
     
     if ask_user:
-        ask_user_response(filled_schemas_by_class)
+        ask_user_response(filled_schemas_by_class, dataset=dataset)
 
     return filled_schemas_by_class
 
-filled_schemas_by_class = get_schema_filled(
-    EXAMPLE_SCHEMA,
-    dataset,
-    EXAMPLE_L0_KEYWORDS,
-    EXAMPLE_L1_KEYWORDS,
-    min_occurrences=3,
-    max_articles=5,
-    ask_user=True
-)
+
+if __name__ == "__main__":
+
+    # Print information about the dataset
+    # try:
+    dataset = load_dataset(DATA_PATH)
+    # except:
+    #     dataset = get_dataset(year=2024, store_and_filter=True)  # download, process, store
+    dataset = dataset["train"]
+
+
+    print(dataset)        # 9,970,029    still 10M articles after filtering
+    print(f"{type(dataset) = }")
+
+    filled_schemas_by_class = get_schema_filled(
+        EXAMPLE_SCHEMA,
+        dataset,
+        EXAMPLE_L0_KEYWORDS,
+        EXAMPLE_L1_KEYWORDS,
+        min_occurrences=3,
+        max_articles=5,
+        ask_user=True
+    )
 
 
 
-output_str_to_write = ""
-for schema_class, filled_schemas in filled_schemas_by_class.items():
-    output_str_to_write += f"Schema class: {schema_class}"
-    for article_index, (filled_schema, user_response) in filled_schemas.items():
-        output_str_to_write += "\n" + row_to_string(dataset[article_index])
-        output_str_to_write += filled_schema
-        output_str_to_write += "\n" + f"{user_response = }"
-    output_str_to_write += "\n\n"
+    output_str_to_write = ""
+    for schema_class, filled_schemas in filled_schemas_by_class.items():
+        output_str_to_write += f"Schema class: {schema_class}"
+        for article_index, (filled_schema, user_response) in filled_schemas.items():
+            output_str_to_write += "\n" + row_to_string(dataset[article_index])
+            output_str_to_write += filled_schema
+            output_str_to_write += "\n" + f"{user_response = }"
+        output_str_to_write += "\n\n"
 
-with open("filled_schemas.txt", "w") as f:
-    f.write(output_str_to_write)
+    with open("filled_schemas.txt", "w") as f:
+        f.write(output_str_to_write)
