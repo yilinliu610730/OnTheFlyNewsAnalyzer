@@ -1,10 +1,8 @@
 import os
 import sys
 from datasets import load_dataset
-from tqdm import tqdm
 from typing import Union, List, Any, Dict
 from collections import defaultdict
-from tqdm import tqdm
 from retrieve_and_fill.retrieve_and_fill import row_to_string
 import openai
 openai.api_key = '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'
