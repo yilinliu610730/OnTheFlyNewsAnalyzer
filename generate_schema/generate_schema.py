@@ -1,4 +1,5 @@
 import openai
+from refine_schema.refine_schema import refine_schema_with_levels
 
 # Set your OpenAI API key here
 openai.api_key = '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'
@@ -8,7 +9,7 @@ instructions = '''
 Task: Based on user input, dynamically interpret and generate a structured schema with relevant entities, attributes, data types, and relationships.
 
 Instructions:
-- Define a single base class with the exact signature (ACLEDEvent, ABC), which subsequent classes will extend. ACLEDEvent should not be defined.
+- Define a single base class with the exact signature (ABC), which subsequent classes will extend.
 - For each main entity, define a class with attributes reflecting its properties, all inheriting from the base class.
 - Generate multiple subclass types where applicable, each representing specific event variations or details, all extending from the base class.
 - The final output should include the base class and multiple subclasses as specified in the example.
@@ -168,16 +169,6 @@ Now, based on the user’s input and strictly follow the instructions, interpret
 Generate the initial schema based on the user input.
 '''
 
-# Define prompt template for generating all follow-up questions
-follow_up_prompt_template_all = """
-Based on the user's initial input:
-
-{user_input}
-
-Generate 10 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
-"""
-
-
 # Function to generate schema based on user input
 def generate_initial_schema(user_input):
     response = openai.ChatCompletion.create(
@@ -199,23 +190,6 @@ def generate_initial_schema(user_input):
     
     return initial_schema
 
-# Function to generate 10 follow-up questions upfront
-def generate_follow_up_questions(user_input):
-    follow_up_prompt = follow_up_prompt_template_all.format(user_input=user_input)
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are an expert schema generator."},
-            {"role": "user", "content": follow_up_prompt}
-        ],
-        max_tokens=500,
-        temperature=0.7
-    )
-    
-    # Split and filter out empty lines
-    questions = [q.strip() for q in response['choices'][0]['message']['content'].split("\n") if q.strip()]
-    print("Generated Follow-Up Questions:\n", questions)
-    return questions
 
 # Function to generate initial L0 keywords based on user input (limit to 5 keywords)
 def generate_L0_keywords(user_input):
@@ -232,74 +206,6 @@ def generate_L0_keywords(user_input):
     print("Generated L0 Keywords:\n", keywords)
     return keywords
 
-# Function to generate follow-up L1 keywords based on both question and user answer (limit to 1-3 keywords)
-def generate_L1_keywords(follow_up_question, follow_up_answer):
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are an assistant that generates relevant keywords for follow-up answers based on the full context of the question and answer."},
-            {"role": "user", "content": f"Extract 0-3 most relevant keywords based on the following follow-up question and answer.\n\nFollow-up Question: {follow_up_question}\nUser Answer: {follow_up_answer}. Keywords should be in format keyword 1, keyword 2, ..."}
-        ],
-        max_tokens=50,
-        temperature=0.5
-    )
-    keywords = response['choices'][0]['message']['content'].strip().split(', ')[:3]
-    print("Generated L1 Keywords:\n", keywords)
-    return keywords
-
-def refine_schema_with_levels(initial_schema, instructions, L0_keywords, user_input):
-    follow_up_questions = generate_follow_up_questions(user_input)
-    refined_inputs = []
-    all_L1_keywords = set()  # Use a set to automatically handle duplicates
-
-    for idx, follow_up_question in enumerate(follow_up_questions):
-        user_response = input(f"Follow-up Question {idx + 1}: {follow_up_question}\nYour Answer (type 'exit' to finish): ")
-        
-        if user_response.lower() == "exit":
-            break
-
-        refined_inputs.append(f"{follow_up_question} {user_response}")
-        
-        # Generate L1 keywords using both question and answer
-        L1_keywords = generate_L1_keywords(follow_up_question, user_response)
-        all_L1_keywords.update(L1_keywords)  # Add keywords to the set to avoid duplicates
-
-        # Refine schema based on follow-up inputs
-        refine_schema_prompt = (
-            f"The initial schema is:\n{initial_schema}\n\n"
-            "Refine the schema based on the following user inputs, ensuring it strictly follows the original instructions:\n"
-            f"{instructions}\n\n"
-            "Important: Only add or revise fields as needed based on the user input. "
-            "Do not modify other parts of the schema, such as existing classes, comments, or initial variables, unless explicitly instructed by the user.\n\n"
-            "User Inputs:\n" + "\n".join(refined_inputs)
-        )
-        
-        refine_response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are an expert schema generator."},
-                {"role": "user", "content": refine_schema_prompt}
-            ],
-            max_tokens=5000,
-            temperature=0.7
-        )
-        
-        # Update the schema with the refined version
-        initial_schema = refine_response['choices'][0]['message']['content'].strip()
-        print("Updated Schema:\n", initial_schema)
-    
-    # Save the final schema and keywords to separate text files after refinement
-    with open("final_schema.txt", "w") as schema_file:
-        schema_file.write(initial_schema)
-    print("Final schema saved to final_schema.txt")
-    
-    # Save L0 and consolidated L1 keywords in the specified format
-    with open("keywords.txt", "w") as keywords_file:
-        keywords_file.write(f"L0: {L0_keywords}\n")
-        keywords_file.write(f"L1: {sorted(all_L1_keywords)}\n")  # Sort for consistency
-    print("Keywords saved to keywords.txt in the specified format.")
-
-    return initial_schema, L0_keywords, sorted(all_L1_keywords)
 
 # Main function to execute the schema generation process with levels
 def generate_schema_with_levels(user_input):
