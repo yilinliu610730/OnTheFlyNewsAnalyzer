@@ -12,44 +12,89 @@ Based on the user's initial input:
 Generate 10 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
 """
 
-# Define a refined prompt template with additional clarity and detailed instructions
 refine_schema_prompt_template = """
-You are a virtual assistance model given an initial schema, you need to add or revise fields as needed based on each user input to follow-up questions.
-The schema is in string but follows a Python Class definition format. You need to fill in the attributes and descriptions based on the user input.
+You are a virtual assistant tasked with refining a schema based on user input. The schema is written in Python `class` definition format. Your goal is to update the schema by adding or revising fields based on each user response, while maintaining the structure and clarity of the schema.
 
+### Initial Schema
 The initial schema is:
 
 {initial_schema}
 
-Refine the schema based on the following user inputs, ensuring it strictly follows the original instructions:
-{instructions}
+### Instructions
+1. Use the initial schema as a starting point. Add or revise fields only when explicitly indicated by user input. Avoid modifying the structure unnecessarily.
+2. Follow these specific guidelines:
+    - Define a single base class named `ABC` as the foundation, with other classes extending from it as needed.
+    - Use precise field definitions. Replace placeholders (`...`) with concrete values or type definitions.
+    - Each field must include a clear, concise description provided in the `Field` function's `description` parameter.
+3. For specific inputs about segments or focus areas:
+    - Add boolean fields based on the user’s response. For example:
+      ```python
+      is_software: bool = Field(True, description="Indicates focus on the software segment")
+      ```
+4. For inputs related to timeframes:
+    - Add `start_date` and `end_date` fields using the `YYYY-MM-DD` format. For example:
+      ```python
+      start_date: datetime = Field(datetime(2024, 1, 1), description="Start date of the analysis period")
+      end_date: datetime = Field(datetime(2024, 12, 31), description="End date of the analysis period")
+      ```
+5. For general responses such as "all", "any", "either", or anything relevant:
+    - Define an `Enum` class to enumerate all possible options.
+    - Add a field capturing the selected options. For example:
+      ```python
+      class FinancialMetric(Enum):
+          REVENUE_GROWTH = "Revenue Growth"
+          PROFIT_MARGINS = "Profit Margins"
+          STOCK_PERFORMANCE = "Stock Performance"
+          INVESTMENT_TRENDS = "Investment Trends"
+      
+      metrics: List[FinancialMetric] = Field(
+          [FinancialMetric.REVENUE_GROWTH, FinancialMetric.PROFIT_MARGINS, FinancialMetric.STOCK_PERFORMANCE, FinancialMetric.INVESTMENT_TRENDS],
+          description="List of all selected financial metrics"
+      )
+      ```
 
-Guidelines:
-1. Define a single base class with the exact signature (ABC), which subsequent classes will extend.
-2. Only add or revise fields as needed based on each user input to follow-up questions. 
-3. Use the exact signature format for all fields, with specific values instead of `...`. For example, if a field has a default value or type-specific value, provide that in place of `...`.
-4. Include a clear description in the `Field` function's `description` parameter.
-5. For responses indicating specific segments, create boolean fields (e.g., `is_software` set to True if the user specifies "software" as a focus).
-6. For responses indicating a timeframe, use the exact date format `YYYY-MM-DD`. For example, if the timeframe is "past year," add a field formatted as `start_date: datetime = Field(datetime(2024, 1, 1), description="Start date of analysis period")` and `end_date: datetime = Field(datetime(2024, 12, 31), description="End date of analysis period")`.
-7. Do not modify existing classes or fields unless necessary; only add new fields or subtypes if explicitly required by user responses.
+### Example Applications
+1. **Specific Input**:
+    - Follow-Up Question: "Are there particular segments within the technology sector, such as software, hardware, or telecom, that you would like to focus on?"
+    - User Response: "Software"
+    - Update the schema by adding the field:
+      ```python
+      is_software: bool = Field(True, description="Indicates focus on the software segment")
+      ```
 
-Example:
-- If the follow-up question is, "What specific timeframe are you interested in analyzing for financial trends in the technology sector in the U.S.?" and the user response is "past year," then add two fields:
-    - `start_date: datetime = Field(datetime(2024, 1, 1), description="Start date of analysis period")`
-    - `end_date: datetime = Field(datetime(2024, 12, 31), description="End date of analysis period")`
+2. **Timeframe Input**:
+    - Follow-Up Question: "What specific timeframe are you interested in analyzing for financial trends?"
+    - User Response: "Past year"
+    - Update the schema by adding the fields:
+      ```python
+      start_date: datetime = Field(datetime(2024, 1, 1), description="Start date of the analysis period")
+      end_date: datetime = Field(datetime(2024, 12, 31), description="End date of the analysis period")
+      ```
 
-- If the follow-up question is, "Are there particular segments within the technology sector, such as software, hardware, or telecom, that you would like to focus on?" and the user response is "software," then add a new field:
-    - `is_software: bool = Field(True, description="Indicates focus on software segment")`
+3. **General Input**:
+    - Follow-Up Question: "Which financial metrics are most important to you in this analysis, such as revenue growth, profit margins, stock performance, or investment trends?"
+    - User Response: "All metrics"
+    - Update the schema by defining an `Enum` and adding the field:
+      ```python
+      class FinancialMetric(Enum):
+          REVENUE_GROWTH = "Revenue Growth"
+          PROFIT_MARGINS = "Profit Margins"
+          STOCK_PERFORMANCE = "Stock Performance"
+          INVESTMENT_TRENDS = "Investment Trends"
+      
+      metrics: List[FinancialMetric] = Field(
+          [FinancialMetric.REVENUE_GROWTH, FinancialMetric.PROFIT_MARGINS, FinancialMetric.STOCK_PERFORMANCE, FinancialMetric.INVESTMENT_TRENDS],
+          description="List of all selected financial metrics"
+      )
+      ```
 
-- If the follow-up question is, "Which financial metrics are most important to you in this analysis, such as revenue growth, profit margins, stock performance, or investment trends?" and the user response is "All metrics," then add a new field with an Enum to capture all potential metrics:
-    - Define an `Enum` class called `FinancialMetric` with options: `REVENUE_GROWTH`, `PROFIT_MARGINS`, `STOCK_PERFORMANCE`, `INVESTMENT_TRENDS`.
-    - Add a field: `metrics: List[FinancialMetric] = Field([FinancialMetric.REVENUE_GROWTH, FinancialMetric.PROFIT_MARGINS, FinancialMetric.STOCK_PERFORMANCE, FinancialMetric.INVESTMENT_TRENDS], description="List of all selected financial metrics")`
-    - Ensure the list includes all metrics when the response is "All metrics."
+### Follow-Up Context
+- **Follow-Up Question**:
+  {follow_up_question}
+- **User Response**:
+  {user_response}
 
-Follow-Up Question: 
-{follow_up_question}
-User Responses:
-{user_response}
+Update the schema accordingly, ensuring all modifications adhere strictly to the instructions and provided examples.
 """
 
 

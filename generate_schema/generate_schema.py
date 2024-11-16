@@ -15,7 +15,6 @@ Instructions:
 - The final output should include the base class and multiple subclasses as specified in the example.
 - Use precise field names, data types (e.g., List, Optional, etc.), and descriptions to describe each attribute.
 - Ensure that each field is defined with the exact signature format, using `Field(..., description="")` to indicate required fields and provide a description. Note that ... should not be replaced with None or any other value.
-- Do not include ACLEDEvent class in the final output; the final output should only contain the generated schema without example usage.
 - In the base class comment, include descriptions of each subtype, as shown in the example.
 - Keep the schema generic, focusing only on general structure and types.
 - Use placeholders where specific details would go (e.g., sector, time period) rather than hardcoded values.
@@ -26,7 +25,7 @@ Instructions:
 # Example schema provided separately 
 example_schema = '''
 
-class Battle(ACLEDEvent, ABC): 
+class Battle(ABC): 
     """
     A "Battle" event is defined as a violent interaction between two organized armed groups at a particular time and location. "Battle" can occur between armed and organized state, non-state, and external groups,
     and in any combination therein. There is no fatality minimum necessary for inclusion. Civilians can be harmed in the course of larger "Battle" events if they are caught in the crossfire, for example, or affected by strikes on military targets, which is commonly referred to as "collateral damage" (for more,
@@ -106,7 +105,7 @@ class ArmedClash(Battle):
         description="The category of violence against women, if any. If this violence is not targeting women, this should be an empty list.",
     )
 
-class Protest(ACLEDEvent, ABC):
+class Protest(ABC):
     """
     A "Protest" event is defined as an in-person public demonstration of three or more participants in which the participants do not engage in violence, though violence may be used against them. Events include individuals and groups who peacefully demonstrate against a political entity, government institution, policy, group, tradition, business, or other private institution. The following are not recorded as " Protest" events: symbolic public acts such as displays of flags or public prayers (unless they are accompanied by a demonstration); legislative protests, such as parliamentary walkouts or members of parliaments staying silent; strikes (unless they are accompanied by a demonstration); and individual acts such as self-harm actions like individual immolations or hunger strikes.
     Protestor are noted by generic actor name "Protestor". If they are representing a group, the name of that group is also recorded in the field.

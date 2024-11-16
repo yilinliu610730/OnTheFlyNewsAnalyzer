@@ -2,3 +2,5 @@ retrieve_and_fill/dataset/filtered_data/train/*
 retrieve_and_fill/*.txt
 generate_schema/*.txt
 *.txt
+generate_schema/__pycache__/*
+refine_schema/__pycache__/*
