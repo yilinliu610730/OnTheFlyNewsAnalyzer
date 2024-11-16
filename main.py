@@ -6,27 +6,16 @@
 #     - ask for user's feedback in each pair (article, schema instance)
 # 4) run refine_schema_with_instance_feedback(initial_prompt, initial_schema, sample_article, sample_instance, user_response)
 
-from generate_schema.generate_schema import instructions, example_schema, generate_schema_with_levels # generate_schema, initial_prompt
-from refine_schema.refine import refine_schema_with_instance_feedback
-from retrieve_and_fill.retrieve_and_fill import get_schema_filled, get_dataset, row_to_string
-from retrieve_and_fill.retrieve_and_fill import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
-from final_answer.final_answer import get_final_answer
+from generate_schema.generate_schema import instructions, generate_schema_with_levels # generate_schema, initial_prompt
+from refine_schema_from_instances import refine_schema_with_instance_feedback
+from retrieve_and_fill import get_schema_filled
+from common.example import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
+from common.utils import process_schema
+from final_answer import get_final_answer
 from datasets import load_dataset
 from typing import List, Tuple, Dict
+import os, json
 
-# raw schema to schema by class name, with parent class combined with child classes
-def process_schema(raw_schema: str, add_base_class: bool = True) -> Tuple[Dict[str, str], str]:
-    schema_by_class = raw_schema.split("class ")[1:]
-    schema_by_class = [f"class {schema}" for schema in schema_by_class]
-    base_class = schema_by_class[0]
-    schema_by_class = schema_by_class[1:]
-    if add_base_class:
-        schema_by_class = [base_class + schema for schema in schema_by_class]
-        split_idx = 2
-    else:
-        split_idx = 1
-    # class name to entire class SCHEMA string
-    return {schema.split("class ")[split_idx].split("(")[0]: schema for schema in schema_by_class}, base_class
 
 class SchemaGenerator():
     
@@ -34,7 +23,7 @@ class SchemaGenerator():
         DATA_PATH = "./dataset/filtered_data"
         self.dataset = load_dataset(DATA_PATH)['train']
 
-        self.user_query: str = ""
+        self.user_query: str = "What are the financial trends in the technology sector in the U.S.?"
         self.schema: str = EXAMPLE_SCHEMA  # this is a string contains both base class and child classes
         self.L0_keywords: List[str] = EXAMPLE_L0_KEYWORDS
         self.L1_keywords: List[str] = EXAMPLE_L1_KEYWORDS
@@ -44,7 +33,7 @@ class SchemaGenerator():
         self.answer: str = ""
     
     def reset(self):
-        self.user_query = ""
+        self.user_query = "What are the financial trends in the technology sector in the U.S.?"
         self.schema = EXAMPLE_SCHEMA
         self.L0_keywords = EXAMPLE_L0_KEYWORDS
         self.L1_keywords = EXAMPLE_L1_KEYWORDS
@@ -52,6 +41,49 @@ class SchemaGenerator():
         self.schema_by_class_nobase = {}
         self.filled_schemas_by_class = {}
         self.answer = ""
+
+    # save current state to txt files
+    def snapshot(self, directory: str = "."):
+        os.makedirs(directory, exist_ok=True)
+        # write strings to txt directly
+        with open(f"{directory}/user_query.txt", "w") as f:
+            f.write(self.user_query)
+        with open(f"{directory}/schema.txt", "w") as f:
+            f.write(self.schema)
+        with open(f"{directory}/answer.txt", "w") as f:
+            f.write(self.answer)
+        # write lists to txt split by \n
+        with open(f"{directory}/L0_keywords.txt", "w") as f:
+            f.write("\n".join(self.L0_keywords))
+        with open(f"{directory}/L1_keywords.txt", "w") as f:
+            f.write("\n".join(self.L1_keywords))
+        # write the dictionary into json
+        with open(f"{directory}/filled_schemas_by_class.json", "w") as f:
+            json.dump(self.filled_schemas_by_class, f)
+        with open(f"{directory}/schema_by_class.json", "w") as f:
+            json.dump(self.schema_by_class, f)
+        with open(f"{directory}/schema_by_class_nobase.json", "w") as f:
+            json.dump(self.schema_by_class_nobase, f)
+    
+
+    def load_snapshot(self, directory: str = "."):
+        # read strings from txt 
+        with open(f"{directory}/user_query.txt", "r") as f:
+            self.user_query = f.read()
+        with open(f"{directory}/schema.txt", "r") as f:
+            self.schema = f.read()
+        with open(f"{directory}/answer.txt", "r") as f:
+            self.answer = f.read()
+        # read lists from txt split by \n
+        with open(f"{directory}/L0_keywords.txt", "r") as f:
+            self.L0_keywords = f.read().split("\n")
+        with open(f"{directory}/L1_keywords.txt", "r") as f:
+            self.L1_keywords = f.read().split("\n")
+        # read the dictionary from json
+        with open(f"{directory}/filled_schemas_by_class.json", "r") as f:
+            self.filled_schemas_by_class = json.load(f)
+        with open(f"{directory}/schema_by_class.json", "r") as f:
+            self.schema_by_class = json.load(f)
 
     # STEP 1: find the schema and keywords for the user query, back-and-forth with user
     def run_generator(self) -> Tuple[str, List[str], List[str]]:
@@ -74,12 +106,12 @@ class SchemaGenerator():
             self.schema_by_class, _ = process_schema(self.schema, add_base_class=True)
             self.schema_by_class_nobase, self.base_class = process_schema(self.schema, add_base_class=False)
             self.filled_schemas_by_class = get_schema_filled(
-                self.schema_by_class,  # later change to real schema, generated in step1
+                self.schema,
                 self.dataset,
-                self.L0_keywords,  # later change to auto-generated L0 keywords, generated in step1
-                self.L1_keywords,  # later change to auto-generated L1 keywords, generated in step1
+                self.L0_keywords,
+                self.L1_keywords,
                 min_occurrences=3,
-                max_articles=5,
+                max_articles=10,
                 collect_user_feedback=collect_user_feedback
             )
             if not collect_user_feedback:
@@ -101,15 +133,12 @@ class SchemaGenerator():
                 if refined_schema[-3:] == '```':
                     refined_schema = refined_schema[:-3]
 
-            print("Refined schema:", refined_schema)
+            print("Refined schema:\n", refined_schema)
             self.schema = new_schema
 
             retrieve_again = input("Put [Y/YES] to retrieve again in new schema, otherwise use current filled schema instances: ")
             if retrieve_again.lower() not in ["yes", "y"]:
                 break
-            collect_feedback_again = input("In next round of retrieval, put [Y/YES] to collect user feedback again, otherwise stop collecting user feedback: ")
-            collect_user_feedback = collect_feedback_again.lower() in ["yes", "y"]
-            breakpoint()
 
 
     # basically need to provide a final NLP answer to user's input query, with information from filled schemas
@@ -119,6 +148,7 @@ class SchemaGenerator():
             answer += f"From the perspective of {schema_class}:\n"
             summarized_answer = get_final_answer(filled_schemas, self.user_query)
             answer += summarized_answer + "\n\n"
+        self.answer = answer
         with open(f"final_answer_{self.user_query}.txt", "w") as f:
             f.write(answer)
         return answer
@@ -126,18 +156,19 @@ class SchemaGenerator():
 
     def run_single(self):
         self.reset()
-        # schema, L0_keywords, L1_keywords = self.run_generator()
-        # self.run_retrieval_and_fill(schema, L0_keywords, L1_keywords)
+        # self.run_generator()
         self.run_retrieval_and_fill()
         self.final_answer()
+        self.snapshot("snapshot")
 
-    
+    # for users to submit multiple queries, not used for now, directly call run_single for single-query
     def run(self):
         while True:
             self.run_single()
             user_feedback = input("Do you want to generate another schema? (yes/no)")
             if user_feedback.lower() not in ["yes", "y"]:
                 break
+
 
 if __name__ == "__main__":
     schema_generator = SchemaGenerator()
