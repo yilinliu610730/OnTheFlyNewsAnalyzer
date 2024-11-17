@@ -6,9 +6,10 @@
 #     - ask for user's feedback in each pair (article, schema instance)
 # 4) run refine_schema_with_instance_feedback(initial_prompt, initial_schema, sample_article, sample_instance, user_response)
 
-from generate_schema import instructions, generate_schema_with_levels # generate_schema, initial_prompt
+from generate_schema import generate_schema_with_levels # generate_schema, initial_prompt
 from refine_schema_from_instances import refine_schema_with_instance_feedback
 from retrieve_and_fill import get_schema_filled
+from common.prompts import GENERATE_SCHEMA_INSTR
 from common.example_tech import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
 # from common.example_climate import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
 from common.utils import process_schema
@@ -122,7 +123,7 @@ class SchemaGenerator():
             new_schema: str = self.base_class
             for schema_class, filled_schemas in self.filled_schemas_by_class.items():
                 refined_schema = refine_schema_with_instance_feedback(
-                    initial_instructions=instructions,
+                    initial_instructions=GENERATE_SCHEMA_INSTR,
                     initial_schema=self.schema_by_class_nobase[schema_class],  # later change to real schema
                     filled_schemas=filled_schemas,  # class instances
                     dataset=self.dataset
