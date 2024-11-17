@@ -3,4 +3,4 @@ retrieve_and_fill/*.txt
 dataset/filtered_data/train/*
 snapshot*/
 *.txt
-pycache
+__pycache__/
