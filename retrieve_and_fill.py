@@ -3,7 +3,6 @@ from tqdm import tqdm
 from typing import Union, List, Any, Dict, Tuple
 import openai
 from common.prompts import FILL_SCHEMA_PROMPT, KEYWORD_PROMPT
-from common.example import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
 from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL, process_schema, row_to_string
 openai.api_key = OPENAI_API_KEY
 
@@ -25,7 +24,6 @@ def get_keywords(row: Union[dict, str]) -> List[str]:
     )
     keywords_str = keywords_str['choices'][0]['message']['content'].strip()
     keywords_lst = keywords_str.split(", ")
-    # keywords_lst = [''.join([char for char in _str if char.isalnum()]) for _str in keywords_lst]
     keywords_lst = [keyword.lower() for keyword in keywords_lst]
     return keywords_lst
 
@@ -37,11 +35,13 @@ def count_keyword_occurences(text: str, keywords: List[str]) -> int:
             occurrences += 1
     return occurrences
 
+
 def satisfy_l0_keywords(text: str, keywords: List[str]) -> bool:
     for keyword in keywords:
         if keyword not in text:
             return False
     return True
+
 
 # in-place edit
 def ask_user_response(filled_schemas_by_class: Dict[str, Dict[int, Tuple[str, str]]], dataset) -> None:
@@ -82,8 +82,8 @@ def get_schema_filled(
 
     # article index to article content
     articles: Dict[int, str] = {}
-    for i, row in tqdm(enumerate(dataset)):
-        article_contents = row_to_string(row)
+    for i, row in tqdm(enumerate(dataset), desc = f"num retrieved so far: {len(articles)}"):
+        article_contents = row_to_string(row, to_lower=True)
         if len(articles) >= max_articles:
             break
         if not satisfy_l0_keywords(article_contents, L0_keywords):
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     print(dataset)        # 9,970,029    still 10M articles after filtering
     print(f"{type(dataset) = }")
-
+    from common.example_tech import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
     filled_schemas_by_class = get_schema_filled(
         EXAMPLE_SCHEMA,
         dataset,

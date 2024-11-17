@@ -6,10 +6,11 @@
 #     - ask for user's feedback in each pair (article, schema instance)
 # 4) run refine_schema_with_instance_feedback(initial_prompt, initial_schema, sample_article, sample_instance, user_response)
 
-from generate_schema.generate_schema import instructions, generate_schema_with_levels # generate_schema, initial_prompt
+from generate_schema import instructions, generate_schema_with_levels # generate_schema, initial_prompt
 from refine_schema_from_instances import refine_schema_with_instance_feedback
 from retrieve_and_fill import get_schema_filled
-from common.example import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS
+from common.example_tech import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
+# from common.example_climate import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
 from common.utils import process_schema
 from final_answer import get_final_answer
 from datasets import load_dataset
@@ -23,7 +24,7 @@ class SchemaGenerator():
         DATA_PATH = "./dataset/filtered_data"
         self.dataset = load_dataset(DATA_PATH)['train']
 
-        self.user_query: str = "What are the financial trends in the technology sector in the U.S.?"
+        self.user_query: str = EXAMPLE_QUERY
         self.schema: str = EXAMPLE_SCHEMA  # this is a string contains both base class and child classes
         self.L0_keywords: List[str] = EXAMPLE_L0_KEYWORDS
         self.L1_keywords: List[str] = EXAMPLE_L1_KEYWORDS
@@ -33,7 +34,7 @@ class SchemaGenerator():
         self.answer: str = ""
     
     def reset(self):
-        self.user_query = "What are the financial trends in the technology sector in the U.S.?"
+        self.user_query = EXAMPLE_QUERY
         self.schema = EXAMPLE_SCHEMA
         self.L0_keywords = EXAMPLE_L0_KEYWORDS
         self.L1_keywords = EXAMPLE_L1_KEYWORDS
@@ -59,11 +60,11 @@ class SchemaGenerator():
             f.write("\n".join(self.L1_keywords))
         # write the dictionary into json
         with open(f"{directory}/filled_schemas_by_class.json", "w") as f:
-            json.dump(self.filled_schemas_by_class, f)
+            json.dump(self.filled_schemas_by_class, f, indent=4)
         with open(f"{directory}/schema_by_class.json", "w") as f:
-            json.dump(self.schema_by_class, f)
+            json.dump(self.schema_by_class, f, indent=4)
         with open(f"{directory}/schema_by_class_nobase.json", "w") as f:
-            json.dump(self.schema_by_class_nobase, f)
+            json.dump(self.schema_by_class_nobase, f, indent=4)
     
 
     def load_snapshot(self, directory: str = "."):
@@ -99,6 +100,7 @@ class SchemaGenerator():
     # STEP 2: retrieve and fill the schema with instances
     # STEP 3: back-and-forth with user to refine the schema based on filled instances
     def run_retrieval_and_fill(self):
+        breakpoint()
         while True:
             collect_user_feedback = input("Reply [Y/YES] if you want to provide feedback, otherwise there will be no feedback or refinement loop: ")
             collect_user_feedback = collect_user_feedback.lower() in ["yes", "y"]
@@ -143,14 +145,12 @@ class SchemaGenerator():
 
     # basically need to provide a final NLP answer to user's input query, with information from filled schemas
     def final_answer(self) -> str:
-        answer = f'Here are the final answer to your query "{self.user_query}" analyzed from different perspestives:\n\n'
+        answer = f'Here is the final answer to your query "{self.user_query}" analyzed from different perspectives:\n\n'
         for schema_class, filled_schemas in self.filled_schemas_by_class.items():
             answer += f"From the perspective of {schema_class}:\n"
             summarized_answer = get_final_answer(filled_schemas, self.user_query)
             answer += summarized_answer + "\n\n"
         self.answer = answer
-        with open(f"final_answer_{self.user_query}.txt", "w") as f:
-            f.write(answer)
         return answer
 
 
@@ -168,7 +168,6 @@ class SchemaGenerator():
             user_feedback = input("Do you want to generate another schema? (yes/no)")
             if user_feedback.lower() not in ["yes", "y"]:
                 break
-
 
 if __name__ == "__main__":
     schema_generator = SchemaGenerator()
