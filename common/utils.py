@@ -7,8 +7,8 @@ OPENAI_API_MODEL = "gpt-4o"
 
 def process_schema(raw_schema: str, add_base_class: bool = True) -> Tuple[Dict[str, str], str]:
     schema_by_class = raw_schema.split("class ")[1:]
-    enum_classes = '\n'.join([_class for _class in schema_by_class if "enum" in _class])
-    schema_by_class = [f"class {schema}" for schema in schema_by_class if "enum" not in schema]
+    enum_classes = '\n'.join([_class for _class in schema_by_class if "Enum" in _class])
+    schema_by_class = [f"class {schema}" for schema in schema_by_class if "Enum" not in schema]
     base_class = enum_classes + schema_by_class[0]
     schema_by_class = schema_by_class[1:]
     if add_base_class:
@@ -17,7 +17,8 @@ def process_schema(raw_schema: str, add_base_class: bool = True) -> Tuple[Dict[s
     else:
         split_idx = 1
     # class name to entire class SCHEMA string
-    return {schema.split("class ")[split_idx].split("(")[0]: schema for schema in schema_by_class}, base_class
+    out = {schema.split("class ")[split_idx].split("(")[0]: schema for schema in schema_by_class}, base_class
+    return out
 
 def row_to_string(row: dict, to_lower: bool = True) -> str:
     out_string = ''

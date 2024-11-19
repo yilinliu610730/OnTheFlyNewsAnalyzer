@@ -90,7 +90,7 @@ def get_schema_filled(
             continue
         if count_keyword_occurences(article_contents, L1_keywords) > min_occurrences:
             articles[i] = article_contents
-
+    articles[55146] = row_to_string(dataset[55146], to_lower=True)
     print(f"Found {len(articles)} relevant articles after scanning {i} articles.")
         
     # class to article index to filled schema

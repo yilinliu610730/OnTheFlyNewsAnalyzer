@@ -6,7 +6,7 @@
 #     - ask for user's feedback in each pair (article, schema instance)
 # 4) run refine_schema_with_instance_feedback(initial_prompt, initial_schema, sample_article, sample_instance, user_response)
 
-from generate_schema import generate_schema_with_levels # generate_schema, initial_prompt
+from generate_schema import generate_schema_with_levels
 from refine_schema_from_instances import refine_schema_with_instance_feedback
 from retrieve_and_fill import get_schema_filled
 from common.prompts import GENERATE_SCHEMA_INSTR
@@ -45,7 +45,7 @@ class SchemaGenerator():
         self.answer = ""
 
     # save current state to txt files
-    def snapshot(self, directory: str = "."):
+    def snapshot(self, directory: str = ".") -> None:
         os.makedirs(directory, exist_ok=True)
         # write strings to txt directly
         with open(f"{directory}/user_query.txt", "w") as f:
@@ -68,7 +68,7 @@ class SchemaGenerator():
             json.dump(self.schema_by_class_nobase, f, indent=4)
     
 
-    def load_snapshot(self, directory: str = "."):
+    def load_snapshot(self, directory: str = ".") -> None:
         # read strings from txt 
         with open(f"{directory}/user_query.txt", "r") as f:
             self.user_query = f.read()
@@ -101,7 +101,7 @@ class SchemaGenerator():
     # STEP 2: retrieve and fill the schema with instances
     # STEP 3: back-and-forth with user to refine the schema based on filled instances
     def run_retrieval_and_fill(self):
-        breakpoint()
+        # breakpoint()
         while True:
             collect_user_feedback = input("Reply [Y/YES] if you want to provide feedback, otherwise there will be no feedback or refinement loop: ")
             collect_user_feedback = collect_user_feedback.lower() in ["yes", "y"]
@@ -113,8 +113,8 @@ class SchemaGenerator():
                 self.dataset,
                 self.L0_keywords,
                 self.L1_keywords,
-                min_occurrences=3,
-                max_articles=10,
+                min_occurrences=5,
+                max_articles=3,
                 collect_user_feedback=collect_user_feedback
             )
             if not collect_user_feedback:
