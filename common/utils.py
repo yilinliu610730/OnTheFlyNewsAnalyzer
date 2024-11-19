@@ -49,6 +49,28 @@ def contain_at_least_n_keywords(text: str, keywords: List[str], n: int) -> bool:
     return False
 
 
+def extract_enforced_fields(schema_definition: str) -> Dict[str, str]:
+    enforced_fields = {}
+    for line in schema_definition.split("\n"):
+        # detect anything like `Field(True, description="")`, instead of unfilled Field(..., description="")
+        if "Field(" in line and "..." not in line and "None" not in line:
+            field_name, line = line.split(":")[0], line.split(":")[1]
+            field_name = "".join(field_name.split())
+            line = line.split("Field(")[1]
+            field_val = line.split(",")[0]
+            enforced_fields[field_name] = field_val
+    return enforced_fields
+
+
+def schema_satisfy_all_enforced_fields(schema_instance: str, enforced_fields: Dict[str, str]) -> bool:
+    for field_name, field_val in enforced_fields.items():
+        if field_name not in schema_instance:
+            return False
+        if field_val not in schema_instance.split(field_name)[1].split(",")[0]:
+            return False
+    return True
+
+
 # index to keywords system building
 def build_index(dataset):
     import os, pickle, tqdm

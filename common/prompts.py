@@ -19,6 +19,11 @@ Instructions:
 - The final output should include the base class and multiple subclasses as specified in the example.
 - Use precise field names, data types (e.g., List, Optional, etc.), and descriptions to describe each attribute.
 - Ensure that each field is defined with the exact signature format, using `Field(..., description="")` to indicate required fields and provide a description. Note that ... should not be replaced with None or any other value.
+- Ensure that each field is in one line. For instance use `location: Location = Field(..., description="")`. Instead of:
+    location: Location = Field(
+        ...,
+        description=""
+    )
 - In the base class comment, include descriptions of each subtype, as shown in the example.
 - Keep the schema generic, focusing only on general structure and types.
 - Use placeholders where specific details would go (e.g., sector, time period) rather than hardcoded values.
@@ -52,62 +57,35 @@ class Battle(ABC):
     - ArmedClash: Armed, organized groups engage in a battle without significant changes in territorial control.
     """
     location: Location = Field(..., description="Location where the event takes place") 
-    fatalities: Optional[int] = Field(
-        ...,
-        description="Total number of fatalities, if known", 
-    )
+    fatalities: Optional[int] = Field(..., description="Total number of fatalities, if known")
 
     
 class GovernmentRegainsTerritory(Battle): 
     """
     Is a type of "Battle" event. This event type is used when government forces or their affiliates that are fighting against competing state forces or against a non-state group regain control of a location through armed interaction. This event type is only recorded for the re-establishment of government control and not for cases where competing non-state actors exchange control. Short-lived and/or small- scale territorial exchanges that do not last for more than one day are recorded as "ArmedClash".
     """
-    government_force: List[str] = Field( 
-        ...,
-        description="The government forces or their affiliates that regain control of the territory", 
-    )
-    adversary: List[str] = Field( 
-        ...,
-        description="The competing state forces or non-state group that lose control of the territory. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces",
-    )
+    government_force: List[str] = Field(..., description="The government forces or their affiliates that regain control of the territory")
+    adversary: List[str] = Field(..., description="The competing state forces or non-state group that lose control of the territory. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces")
 
 class NonStateActorOvertakesTerritory(Battle): 
     """
     Is a type of "Battle" event. This event type is used when a non-state actor (excluding those operating directly on behalf of the government) or a foreign state actor, through armed interaction, captures territory from an opposing government or non-state actor; as a result, they are regarded as having a monopoly of force within that territory. Short-lived and/or small-scale territorial exchanges that do not last for more than one day are recorded as "ArmedClash" events. In cases where non-state forces fight with opposing actors in a location many times before gaining control, only the final territorial acquisition is recorded as "Non-state actor overtakes territory". All other battles in that location are
     recorded as "ArmedClash". 
     """
-    non_state_actor: List[str] = Field( 
-        ...,
-        description="The non-state actor overtaking territory. Can be Rebel Groups, Political Militias, Identity Militias or External Forces",
-    )
-    adversary: List[str] = Field(
-        ...,
-        description="The opposing government or non-state actor from whom the territory was taken. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces",
-    )
+    non_state_actor: List[str] = Field(..., description="The non-state actor overtaking territory. Can be Rebel Groups, Political Militias, Identity Militias or External Forces")
+    adversary: List[str] = Field(..., description="The opposing government or non-state actor from whom the territory was taken. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces")
 
 class ArmedClash(Battle): 
     """
     Is a type of "Battle" event. This event type is used when two organized groups like State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces engage in a battle, and no reports indicate a significant change in territorial control.
-    ‘side_1‘ and ‘side_2‘ denote the two sides of the armed clash.
+    'side_1' and 'side_2' denote the two sides of the armed clash.
     Excludes demonstrations that turn violent, riots, and other forms of violence that are not organized armed
     clashes. 
     """
-    side_1: List[str] = Field( 
-        ...,
-        description="Groups involved in the clash. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces",
-    )
-    side_2: List[str] = Field(
-        ...,
-        description="Groups involved in the clash. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces",
-    )
-    targets_local_administrators: bool = Field(
-        ...,
-        description="Whether this violence is affecting local government officials and administrators - including governors, mayors, councilors, and other civil servants.",
-    )
-    women_targeted: List[WomenTargetedCategory] = Field(
-        ...,
-        description="The category of violence against women, if any. If this violence is not targeting women, this should be an empty list.",
-    )
+    side_1: List[str] = Field(..., description="Groups involved in the clash. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces")
+    side_2: List[str] = Field(..., description="Groups involved in the clash. Can be State Forces, Rebel Groups, Political Militias, Identity Militias or External Forces")
+    targets_local_administrators: bool = Field(..., description="Whether this violence is affecting local government officials and administrators - including governors, mayors, councilors, and other civil servants.")
+    women_targeted: List[WomenTargetedCategory] = Field(..., description="The category of violence against women, if any. If this violence is not targeting women, this should be an empty list.")
 
 class Protest(ABC):
     """
@@ -119,10 +97,7 @@ class Protest(ABC):
     - PeacefulProtest: Demonstrators gather for a protest without engaging in violence or rioting and are not met with force or intervention.
     """
     location: Location = Field(..., description="Location where the event takes place") 
-    protestors: List[str] = Field(
-        ...,
-        description="List of protestor groups or individuals involved in the protest", 
-    )
+    protestors: List[str] = Field(..., description="List of protestor groups or individuals involved in the protest")
 
 class ExcessiveForceAgainstProtestors(Protest): 
     """
@@ -130,31 +105,16 @@ class ExcessiveForceAgainstProtestors(Protest):
     institution.) This event type is used when individuals are engaged in a peaceful protest and are targeted with lethal violence or violence resulting in serious injuries (e.g. requiring hospitalization) . This includes situations where remote explosives, such as improvised explosive devices, are used to target protestors, as well as situations where non-state actors, such as rebel groups, target protestors .
     """
     # Possible "Interaction" codes include: 16, 26, 36, 46, 56, and 68.
-    perpetrators: List[str] = Field( 
-        ...,
-        description="Entities perpetrating the violence. Can be State Forces, Rebel Groups, Political Militias , Identity Militias, External Forces",
-    )
-    targets_civilians: bool = Field(
-        ...,
-        description="Indicates if the ’ExcessiveForceAgainstProtestors’ event is mainly or only targeting civilians. E.g. state forces using lethal force to disperse peaceful protestors.",
-    )
-    fatalities: Optional[int] = Field( 
-        ...,
-        description="Total number of fatalities, if known", 
-    )
+    perpetrators: List[str] = Field(..., description="Entities perpetrating the violence. Can be State Forces, Rebel Groups, Political Militias , Identity Militias, External Forces")
+    targets_civilians: bool = Field(..., description="Indicates if the 'ExcessiveForceAgainstProtestors' event is mainly or only targeting civilians. E.g. state forces using lethal force to disperse peaceful protestors.")
+    fatalities: Optional[int] = Field(..., description="Total number of fatalities, if known")
 
 class ProtestWithIntervention(Protest): 
     """
     Is a type of "Protest" event. This event type is used when individuals are engaged in a peaceful protest during which there is a physically violent attempt to disperse or suppress the protest, which resulted in arrests, or minor injuries . If there is intervention, but not violent, the event is recorded as " PeacefulProtest" event type.
     """
-    perpetrators: List[str] = Field( 
-        ...,
-        description="Group(s) or entities attempting to disperse or suppress the protest", 
-    )
-    fatalities: Optional[int] = Field( 
-        ...,
-        description="Total number of fatalities, if known", 
-    )
+    perpetrators: List[str] = Field(..., description="Group(s) or entities attempting to disperse or suppress the protest")
+    fatalities: Optional[int] = Field(..., description="Total number of fatalities, if known")
 
 class PeacefulProtest(Protest): 
     """
@@ -163,12 +123,10 @@ class PeacefulProtest(Protest):
     of violent intervention. 
     """
     # Possible "Interaction" codes include: 60, 66, and 67.
-    counter_protestors: List[str] = Field(
-        ..., description="Groups or entities engaged in counter protest, if any"    
-    )
+    counter_protestors: List[str] = Field(..., description="Groups or entities engaged in counter protest, if any")
 ---
 
-Now, based on the user’s input and strictly follow the instructions, interpret and generate a schema with structured classes, attributes, and descriptions using the above example as a model. Include fields such as location, relevant attributes, participant groups, and actions. Use List or Optional types where applicable. Ensure the schema is detailed and relevant to the user query.
+Now, based on the user's input and strictly follow the instructions, interpret and generate a schema with structured classes, attributes, and descriptions using the above example as a model. Include fields such as location, relevant attributes, participant groups, and actions. Use List or Optional types where applicable. Ensure the schema is detailed and relevant to the user query.
 Generate the initial schema based on the user input.
 '''
 
@@ -342,8 +300,8 @@ FinancialIndexTrend(
 
 
 FINAL_ANSWER_PROMT = '''
-Given the following filled schema instances, please answer the following user query in natual language. Be clear and concise in your answer.
-Your answer should align with the provided information in the filled schema instances.
+Given the following filled schema instances, please answer the following user query in natual language. Be clear and very concise in your sentences, but remember to
+mention the specific numbers you see in the schema instances. Your final summarized answer should align with the provided information in the filled schema instances.
 
 The filled schema instances are:
 {}
@@ -367,9 +325,9 @@ StockFluctuation(
     fluctation_price=-20,
     fluctation_rate=...
 )
-You should always include key statistics such as max flucation price is 100, min fluctuation rate is -20, average fluctuation rate is 0.15 (skip the missing value).
-And also summarize other information into natural languages. Also make sure your final summary aligns with the datestamp in the schema instances if any.
-For instance, If the U.S. government responds at a specific date, make sure your answer point out the date instead of a general time frame.
+Always include key statistics in your final report such as max flucation price is 100, min fluctuation rate is -20, average fluctuation rate is 0.15 (skip the missing value).
+Make sure your final summary aligns with the datestamp in the schema instances if any. For instance, If the U.S. government responds at a specific date, 
+make sure your answer point out the date instead of making it sound like a long-term decision over a long-term time frame.
 '''
 
 FINAL_ANSWER_PROMT_NAIVE = '''

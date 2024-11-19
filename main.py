@@ -12,7 +12,7 @@ from retrieve_and_fill import get_schema_filled
 from common.prompts import GENERATE_SCHEMA_INSTR
 from common.example_tech import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
 # from common.example_climate import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
-from common.utils import process_schema
+from common.utils import process_schema, extract_enforced_fields
 from final_answer import get_final_answer, get_final_answer_naive
 from datasets import load_dataset
 from typing import List, Tuple, Dict
@@ -24,7 +24,7 @@ class SchemaGenerator():
     def __init__(self):
         DATA_PATH = "./dataset/filtered_data"
         self.dataset = load_dataset(DATA_PATH)['train']
-        self.max_articles = 5
+        self.max_articles = 15
 
         self.user_query: str = EXAMPLE_QUERY
         self.schema: str = EXAMPLE_SCHEMA  # this is a string contains both base class and child classes
@@ -33,13 +33,14 @@ class SchemaGenerator():
         self.schema_by_class: Dict[str, str] = {}  # class name to entire class SCHEMA string, value contains both base class and child classes
         self.schema_by_class_nobase: Dict[str, str] = {}  # same above, no base class in value
         self.filled_schemas_by_class: Dict[str, str] = {}
+        self.enforced_fields: List[str] = []
         self.answer: str = ""
         self.article_indices: List[int] = []
         self.answer_naive: str = ""          # use same article_indices
         self.answer_very_naive: str = ""     # don't use article_indices
 
     # STEP 1: find the schema and keywords for the user query, back-and-forth with user
-    def run_generator(self) -> Tuple[str, List[str], List[str]]:
+    def run_generator(self) -> None:
         while True:
             self.user_query = input("What's the topic you want to generate a schema for? ")
             self.schema, self.L0_keywords, self.L1_keywords = generate_schema_with_levels(self.user_query)
@@ -47,12 +48,11 @@ class SchemaGenerator():
             user_feedback = input("Confirm if you want to start retrieval with this schema? (yes/no)")
             if user_feedback.lower() in ["yes", "y"]:
                 break
-        return self.schema, self.L0_keywords, self.L1_keywords
 
     # STEP 2: retrieve and fill the schema with instances
     # STEP 3: back-and-forth with user to refine the schema based on filled instances
-    def run_retrieval_and_fill(self):
-        # breakpoint()
+    def run_retrieval_and_fill(self) -> None:
+        self.enforced_fields = extract_enforced_fields(self.schema)
         while True:
             collect_user_feedback = input("Reply [Y/YES] if you want to provide feedback, otherwise there will be no feedback or refinement loop: ")
             collect_user_feedback = collect_user_feedback.lower() in ["yes", "y"]
@@ -66,6 +66,7 @@ class SchemaGenerator():
                 self.L1_keywords,
                 min_occurrences=5,
                 max_articles=self.max_articles,
+                enforced_fields=self.enforced_fields,
                 collect_user_feedback=collect_user_feedback
             )
             if not collect_user_feedback:
@@ -96,16 +97,16 @@ class SchemaGenerator():
 
 
     # basically need to provide a final NLP answer to user's input query, with information from filled schemas
-    def final_answer(self) -> str:
+    def final_answer(self) -> None:
+        self.enforced_fields = extract_enforced_fields(self.schema)
         answer = f'Here is the final answer to your query "{self.user_query}" analyzed from different perspectives:\n\n'
         for schema_class, filled_schemas in self.filled_schemas_by_class.items():
             answer += f"From the perspective of {schema_class}:\n"
-            summarized_answer = get_final_answer(filled_schemas, self.user_query)
+            summarized_answer = get_final_answer(filled_schemas, self.user_query, self.enforced_fields)
             answer += summarized_answer + "\n\n"
         self.answer = answer
-        return answer
 
-    def run_single_naive(self):
+    def run_single_naive(self) -> None:
         self.answer_naive = get_final_answer_naive(
             self.dataset,
             max_articles=self.max_articles,
@@ -195,6 +196,7 @@ class SchemaGenerator():
         self.schema_by_class = {}
         self.schema_by_class_nobase = {}
         self.filled_schemas_by_class = {}
+        self.enforced_fields = []
         self.answer = ""
         self.article_indices = []
         self.answer_naive = ""

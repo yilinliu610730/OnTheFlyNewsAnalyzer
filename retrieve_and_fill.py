@@ -3,7 +3,7 @@ from tqdm import tqdm
 from typing import Union, List, Any, Dict, Tuple
 import openai
 from common.prompts import FILL_SCHEMA_PROMPT, KEYWORD_PROMPT
-from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL, process_schema, row_to_string, contain_at_least_n_keywords
+from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL, process_schema, row_to_string, contain_at_least_n_keywords, schema_satisfy_all_enforced_fields
 openai.api_key = OPENAI_API_KEY
 
 
@@ -49,8 +49,9 @@ def get_schema_filled(
     dataset,
     L0_keywords: List[str],
     L1_keywords: List[str],
-    min_occurrences: int = 3,
-    max_articles: int = 3,
+    min_occurrences: int,
+    max_articles: int,
+    enforced_fields: Dict[str, str],
     collect_user_feedback: bool = True
 ) -> Tuple[Dict[str, Dict[int, Tuple[str, str]]], List[int]]:
     
@@ -67,7 +68,9 @@ def get_schema_filled(
 
     # article index to article content
     articles: Dict[int, str] = {}
-    for i, row in tqdm(enumerate(dataset), desc = f"num retrieved so far: {len(articles)}"):
+    for i, row in tqdm(enumerate(dataset)):
+        if i < 50000:
+            continue
         article_contents = row_to_string(row, to_lower=True)
         if len(articles) >= max_articles:
             break
@@ -100,8 +103,10 @@ def get_schema_filled(
                 max_tokens=1000,
                 temperature=0.7
             )
-            filled_schema = filled_schema['choices'][0]['message']['content'].strip()
-            article_to_filled_schema[article_index] = (filled_schema, default_user_response)
+            filled_schema: str = filled_schema['choices'][0]['message']['content'].strip()
+            # check enforced schema
+            if schema_satisfy_all_enforced_fields(filled_schema, enforced_fields):
+                article_to_filled_schema[article_index] = (filled_schema, default_user_response)
         filled_schemas_by_class[schema_class] = article_to_filled_schema
     
     if collect_user_feedback:

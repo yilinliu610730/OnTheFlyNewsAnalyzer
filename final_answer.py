@@ -7,7 +7,7 @@ from common.prompts import FINAL_ANSWER_PROMT, FINAL_ANSWER_PROMT_NAIVE
 from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL
 openai.api_key = OPENAI_API_KEY
 
-def get_final_answer(filled_schemas: Dict[str, Tuple[str, str]], user_query: str) -> str:
+def get_final_answer(filled_schemas: Dict[str, Tuple[str, str]], user_query: str, enforced_fields: List[str]) -> str:
     filled_schemas_str = ''
     for article_index, (filled_schema, user_response) in filled_schemas.items():
         filled_schemas_str += filled_schema + "\n"
