@@ -3,7 +3,7 @@ from tqdm import tqdm
 from typing import Union, List, Any, Dict, Tuple
 import openai
 from common.prompts import FILL_SCHEMA_PROMPT, KEYWORD_PROMPT
-from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL, process_schema, row_to_string
+from common.utils import OPENAI_API_KEY, OPENAI_API_MODEL, process_schema, row_to_string, contain_at_least_n_keywords
 openai.api_key = OPENAI_API_KEY
 
 
@@ -26,21 +26,6 @@ def get_keywords(row: Union[dict, str]) -> List[str]:
     keywords_lst = keywords_str.split(", ")
     keywords_lst = [keyword.lower() for keyword in keywords_lst]
     return keywords_lst
-
-
-def count_keyword_occurences(text: str, keywords: List[str]) -> int:
-    occurrences = 0
-    for keyword in keywords:
-        if keyword in text:
-            occurrences += 1
-    return occurrences
-
-
-def satisfy_l0_keywords(text: str, keywords: List[str]) -> bool:
-    for keyword in keywords:
-        if keyword not in text:
-            return False
-    return True
 
 
 # in-place edit
@@ -67,7 +52,7 @@ def get_schema_filled(
     min_occurrences: int = 3,
     max_articles: int = 3,
     collect_user_feedback: bool = True
-) -> Dict[str, Dict[int, Tuple[str, str]]]:
+) -> Tuple[Dict[str, Dict[int, Tuple[str, str]]], List[int]]:
     
     schema_by_class, _ = process_schema(schema, add_base_class=True)
     L0_keywords = process_keywords(L0_keywords)
@@ -86,11 +71,11 @@ def get_schema_filled(
         article_contents = row_to_string(row, to_lower=True)
         if len(articles) >= max_articles:
             break
-        if not satisfy_l0_keywords(article_contents, L0_keywords):
+        if not contain_at_least_n_keywords(article_contents, L0_keywords, n=len(L0_keywords)):
             continue
-        if count_keyword_occurences(article_contents, L1_keywords) > min_occurrences:
+        if contain_at_least_n_keywords(article_contents, L1_keywords, n=min_occurrences):
             articles[i] = article_contents
-    articles[55146] = row_to_string(dataset[55146], to_lower=True)
+    # articles[55146] = row_to_string(dataset[55146], to_lower=True)
     print(f"Found {len(articles)} relevant articles after scanning {i} articles.")
         
     # class to article index to filled schema
@@ -122,7 +107,7 @@ def get_schema_filled(
     if collect_user_feedback:
         ask_user_response(filled_schemas_by_class, dataset=dataset)
 
-    return filled_schemas_by_class
+    return filled_schemas_by_class, list(articles.keys())
 
 
 if __name__ == "__main__":

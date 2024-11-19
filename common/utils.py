@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List
 from datasets import load_dataset
 import os
 
@@ -38,8 +38,15 @@ def get_dataset(year: Union[int, str], store_and_filter=False, data_path=None):
     return dataset
 
 
-
-
+def contain_at_least_n_keywords(text: str, keywords: List[str], n: int) -> bool:
+    count = 0
+    for keyword in keywords:
+        if keyword not in text:
+            continue
+        count += 1
+        if count >= n:
+            return True
+    return False
 
 
 # index to keywords system building

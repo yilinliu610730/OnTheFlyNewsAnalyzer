@@ -372,6 +372,17 @@ And also summarize other information into natural languages. Also make sure your
 For instance, If the U.S. government responds at a specific date, make sure your answer point out the date instead of a general time frame.
 '''
 
+FINAL_ANSWER_PROMT_NAIVE = '''
+Given the following articles, please answer the following user query in natual language. Be clear and concise in your answer.
+Your answer should align with the provided information in the articles, if the article is irrelevant to the query, ignore it.
+
+User query:
+{}
+
+Articles:
+{}
+'''
+
 REFINE_SCHEMA_FROM_INSTANCES_PROMPT = '''
 Your are an expert schema refiner, and your task is to refine the schema based on user's response and the previous schema
 demonstrated to the user. Refine the schema based on the following user inputs, ensuring it strictly follows the original instructions.
