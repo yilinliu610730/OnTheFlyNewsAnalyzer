@@ -136,7 +136,7 @@ Based on the user's initial input:
 
 {user_input}
 
-Generate 10 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
+Generate 5 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
 """
 
 
@@ -260,8 +260,8 @@ Don't change the schema format or anything else from the Schema defintion such a
 Don't include any other information in the output other than the filled schema, no explanation needed.  Carefully read and analyze the news article,
 notice that the news article is usually published on a specific date representing what happened on that day or a few days before.
 
-Here are some examples. Assume the article is:
-The Dow soared 575 points on the day, its most winning day of 2024. The technology sector led declines among the S&P 500 sectors, followed by consumer discretionary. The U.S. personal consumption expenditures (PCE) price index increased 0.3% last month. "People were pleased that it wasn\'t hotly surprising but also underneath the surface, the consumer continues to show a little bit of strain," said Carol Schleif, chief investment officer at the BMO family office in Minneapolis. "It\'s coming through when you look at the sector performances in the market. ... Consumer discretionary is down at the bottom of the list of sector performers today." Traders of futures tied to the Fed policy rate added to bets of roughly even odds that the central bank will begin to cut rates in September and boosted the chances of a second rate cut in December to about the same probability. According to preliminary data, the S&P 500 gained 44.53 points, or 0.85%, to end at 5,280.01 points, while the Nasdaq Composite lost 2.06 points, or 0.01%, to 16,735.02. The Dow Jones Industrial Average rose 574.84 points, or 1.51%, to 38,686.32. Tech and chip stocks, which have led Wall Street\'s recent rally, retreated this week as a spike in Treasury yields pressured riskier assets. Among gainers, Zscaler jumped after the security solutions provider forecast fourth-quarter results above estimates. Gap surged after the apparel maker raised its annual sales forecast and its first-quarter results beat market expectations. Nvidia’s stock has skyrocketed by over 500% since early 2023, fueled by earnings growth.
+Here is a examples, assume the article is:
+The Dow soared 575 points on the day, its most winning day of 2024. The technology sector led declines among the S&P 500 sectors. The U.S. personal consumption expenditures (PCE) price index increased 0.3% last month. Traders of futures tied to the Fed policy rate added to bets of roughly even odds that the central bank will begin to cut rates in September and boosted the chances of a second rate cut in December. S&P 500 gained 44.53 points, or 0.85%, to end at 5,280.01 points, while the Nasdaq Composite lost 2.06 points, or 0.01%, to 16,735.02. The Dow Jones Industrial Average rose 574.84 points, or 1.51%, to 38,686.32. Tech and chip stocks, which have led Wall Street\'s recent rally, retreated this week as a spike in Treasury yields pressured riskier assets. Among gainers, Zscaler jumped after the security solutions provider forecast fourth-quarter results above estimates. Gap surged after the apparel maker raised its annual sales forecast and its first-quarter results beat market expectations. Nvidia’s stock has skyrocketed by over 500% since early 2023, fueled by earnings growth.
 
 If the schema is about Merge or Acquisition, you should leave the entire schema empty, as there is no information about it in the article. For instance:
 MergerAndAcquisition(
@@ -270,25 +270,36 @@ MergerAndAcquisition(
     deal_value=...
 )
 
-If the schema is about Stock Fluctuation in 2024. You should output multiple filled schemas, as there are multiple information about stock fluctuation in the article. An example filled schema could be:
+If the schema is about Stock Fluctuation in 2024 on technology. You should clearly output multiple filled schemas, 
+as there are multiple information about stock fluctuation in the article. An example filled schemas could be:
 StockFluctuation(
-    stock_name="S&P 500",
-    fluctation_price=44.53,
-    fluctation_rate=0.0085,  # 0.85% also acceptable
+    affected_party="S&P 500",
+    price_change=44.53,
+    percentage_change=0.0085,  # 0.85% also acceptable
+    reason="bet on Fed policy rate"
 )
 StockFluctuation(
-    stock_name="Nasdaq Composite",
-    fluctation_price=-2.06,
-    fluctation_rate=-0.0001  # -0.01% also acceptable
+    affected_party="Nasdaq Composite",
+    price_change=-2.06,
+    percentage_change=-0.0001,  # -0.01% also acceptable
+    reason="bet on Fed policy rate"
 )
 StockFluctuation(
-    stock_name="Dow Jones Industrial Average",
-    fluctation_price=574.84,
-    fluctation_rate=0.0151  # 1.51% also acceptable
+    affected_party="Dow Jones Industrial Average",
+    price_change=574.84,
+    percentage_change=0.0151,  # 1.51% also acceptable
+    reason="bet on Fed policy rate"
+)
+StockFluctuation(
+    affected_party="Zscaler",
+    price_change=...,
+    percentage_change=...,
+    reason="forecast above estimates"
 )
 
-However, do not include NVIDIA stock fluctuation, as even though it is mentioned in the article, it is not event happened in 2024. You will be given detailed
-instructions but it is your job to carefully analyze whether each event matches the criteria. If they fail any of the criteria (such as year or sector), ignore the schema.
+However, do not include NVIDIA or GAP's stock fluctuation, as even though they were mentioned in the article, NVIDIA's event happened in 2023 not 2024.
+And GAP is not a technology company, so it is not relevant to the schema. You will be given detailed instructions but it is your job to carefully 
+analyze whether each event matches the criteria. If they fail any of the criteria (such as year or sector), ignore the schema.
 
 If the schema is about financial index trend, an example filled schema could be:
 FinancialIndexTrend(
@@ -302,6 +313,9 @@ FinancialIndexTrend(
 FINAL_ANSWER_PROMT = '''
 Given the following filled schema instances, please answer the following user query in natual language. Be clear and very concise in your sentences, but remember to
 mention the specific numbers you see in the schema instances. Your final summarized answer should align with the provided information in the filled schema instances.
+
+The schema definition and description is:
+{}
 
 The filled schema instances are:
 {}

@@ -7,7 +7,7 @@ openai.api_key = OPENAI_API_KEY
 # Function to generate follow-up L1 keywords based on both question and user answer (limit to 1-3 keywords)
 def generate_L1_keywords(follow_up_question, follow_up_answer):
     response = openai.ChatCompletion.create(
-        model="gpt-4o",
+        model=OPENAI_API_MODEL,
         messages=[
             {"role": "system", "content": "You are an assistant that generates relevant keywords for follow-up answers based on the full context of the question and answer."},
             {"role": "user", "content": f"Extract 0-3 most relevant keywords based on the following follow-up question and answer.\n\nFollow-up Question: {follow_up_question}\nUser Answer: {follow_up_answer}. Keywords should be in format keyword 1, keyword 2, ..."}
@@ -23,7 +23,7 @@ def generate_L1_keywords(follow_up_question, follow_up_answer):
 def generate_follow_up_questions(user_input):
     follow_up_prompt = FOLLOW_UP_PROMPT_TEMPLATE_ALL.format(user_input=user_input)
     response = openai.ChatCompletion.create(
-        model="gpt-4o",
+        model=OPENAI_API_MODEL,
         messages=[
             {"role": "system", "content": "You are an expert schema generator."},
             {"role": "user", "content": follow_up_prompt}

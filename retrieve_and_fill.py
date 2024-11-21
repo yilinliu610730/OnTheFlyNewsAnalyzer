@@ -60,22 +60,21 @@ def get_schema_filled(
     L1_keywords = process_keywords(L1_keywords)
 
 
-    # output is a dictionary key being schema class name, value being a dictionary with key being article index
+    # 1st output is a dictionary key being schema class name, value being a dictionary with key being article index
     # and value being a tuple of (filled schema, user response)
 
-    # iterate through the articles, if there are > 3 keywords present in the content,
-    # use the article stop until finding 10 articles
+    # 2nd output is a list of article indices that are used
 
     # article index to article content
     articles: Dict[int, str] = {}
     for i, row in tqdm(enumerate(dataset)):
-        if i < 50000:
-            continue
         article_contents = row_to_string(row, to_lower=True)
         if len(articles) >= max_articles:
             break
+        # need all L0 keywords
         if not contain_at_least_n_keywords(article_contents, L0_keywords, n=len(L0_keywords)):
             continue
+        # need at least min_occurrences of L1 keywords
         if contain_at_least_n_keywords(article_contents, L1_keywords, n=min_occurrences):
             articles[i] = article_contents
     # articles[55146] = row_to_string(dataset[55146], to_lower=True)

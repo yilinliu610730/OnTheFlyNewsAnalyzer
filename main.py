@@ -12,7 +12,7 @@ from retrieve_and_fill import get_schema_filled
 from common.prompts import GENERATE_SCHEMA_INSTR
 from common.example_tech import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
 # from common.example_climate import EXAMPLE_SCHEMA, EXAMPLE_L0_KEYWORDS, EXAMPLE_L1_KEYWORDS, EXAMPLE_QUERY
-from common.utils import process_schema, extract_enforced_fields
+from common.utils import process_schema, extract_enforced_fields, get_dataset
 from final_answer import get_final_answer, get_final_answer_naive
 from datasets import load_dataset
 from typing import List, Tuple, Dict
@@ -23,8 +23,11 @@ class SchemaGenerator():
     
     def __init__(self):
         DATA_PATH = "./dataset/filtered_data"
-        self.dataset = load_dataset(DATA_PATH)['train']
-        self.max_articles = 15
+        try:
+            self.dataset = load_dataset(DATA_PATH)['train']
+        except:
+            get_dataset(year=2024, store_and_filter=True, data_path=DATA_PATH)['train']  # download, process, store
+        self.max_articles = 3
 
         self.user_query: str = EXAMPLE_QUERY
         self.schema: str = EXAMPLE_SCHEMA  # this is a string contains both base class and child classes
@@ -54,7 +57,7 @@ class SchemaGenerator():
     def run_retrieval_and_fill(self) -> None:
         self.enforced_fields = extract_enforced_fields(self.schema)
         while True:
-            collect_user_feedback = input("Reply [Y/YES] if you want to provide feedback, otherwise there will be no feedback or refinement loop: ")
+            collect_user_feedback = input("Reply [Y/YES] to provide feedback, otherwise there will be no feedback or refinement loop: ")
             collect_user_feedback = collect_user_feedback.lower() in ["yes", "y"]
             # STEP 2: retrieve and fill the schema with instances
             self.schema_by_class, _ = process_schema(self.schema, add_base_class=True)
@@ -64,7 +67,7 @@ class SchemaGenerator():
                 self.dataset,
                 self.L0_keywords,
                 self.L1_keywords,
-                min_occurrences=5,
+                min_occurrences=6,
                 max_articles=self.max_articles,
                 enforced_fields=self.enforced_fields,
                 collect_user_feedback=collect_user_feedback
@@ -98,11 +101,14 @@ class SchemaGenerator():
 
     # basically need to provide a final NLP answer to user's input query, with information from filled schemas
     def final_answer(self) -> None:
-        self.enforced_fields = extract_enforced_fields(self.schema)
         answer = f'Here is the final answer to your query "{self.user_query}" analyzed from different perspectives:\n\n'
         for schema_class, filled_schemas in self.filled_schemas_by_class.items():
             answer += f"From the perspective of {schema_class}:\n"
-            summarized_answer = get_final_answer(filled_schemas, self.user_query, self.enforced_fields)
+            summarized_answer = get_final_answer(
+                self.schema_by_class[schema_class],
+                filled_schemas,
+                self.user_query
+            )
             answer += summarized_answer + "\n\n"
         self.answer = answer
 
@@ -122,12 +128,12 @@ class SchemaGenerator():
 
     def run_single(self, compare: bool = False):
         self.reset()
-        # self.run_generator()
+        self.run_generator()
         self.run_retrieval_and_fill()
         self.final_answer()
         if compare:
             self.run_single_naive()
-        self.snapshot("snapshot_compare")
+        self.snapshot("snapshot_full")
 
     # for users to submit multiple queries, not used for now, directly call run_single for single-query
     def run(self):
@@ -156,6 +162,8 @@ class SchemaGenerator():
             f.write("\n".join(self.L0_keywords))
         with open(f"{directory}/L1_keywords.txt", "w") as f:
             f.write("\n".join(self.L1_keywords))
+        with open(f"{directory}/article_indices.txt", "w") as f:
+            f.write("\n".join(map(str, self.article_indices)))
         # write the dictionary into json
         with open(f"{directory}/filled_schemas_by_class.json", "w") as f:
             json.dump(self.filled_schemas_by_class, f, indent=4)
@@ -182,6 +190,8 @@ class SchemaGenerator():
             self.L0_keywords = f.read().split("\n")
         with open(f"{directory}/L1_keywords.txt", "r") as f:
             self.L1_keywords = f.read().split("\n")
+        with open(f"{directory}/article_indices.txt", "r") as f:
+            self.article_indices = list(map(int, f.read().split("\n")))
         # read the dictionary from json
         with open(f"{directory}/filled_schemas_by_class.json", "r") as f:
             self.filled_schemas_by_class = json.load(f)
