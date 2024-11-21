@@ -85,8 +85,8 @@ class FinancialEvent(ABC):
     """
     location: str = Field(..., description="Location or region where the financial event is observed")
     sector: str = Field(..., description="Sector to which the financial event pertains, e.g., technology")
-    year: int = Field(2024, description="The time during which the financial event occurs, has to be 2024 otherwise ignore the event")
-    is_software: bool = Field(True, description="Indicates focus on software segment, has to be about software otherwise ignore the event")
+    date: datetime = Field(..., description="The time during which the financial event occurs")
+    is_software: bool = Field(True, description="Indicates focus on software segment")
     metrics: Optional[List[FinancialMetric]] = Field(None, description="List of selected financial metrics for evaluation")
     is_national: bool = Field(True, description="Indicates focus on national-level trends within the U.S.")
     macroeconomic_factors: List[str] = Field(..., description="List of macroeconomic factors impacting financial trends, e.g., interest rates, inflation")
@@ -131,7 +131,7 @@ EXAMPLE_L0_KEYWORDS = [
 ]
 
 EXAMPLE_L1_KEYWORDS = [
-    'financial', 'trends', 'invest', 'innovation',
-    'growth', 'market analysis', 'startups', 'venture capital', 'economic', 'stock',
+    'Financial', 'trends', 'market', 'Investment', 'Innovation',
+    'Growth', 'Market analysis', 'startups', 'Venture capital', 'Economic', 'stock',
     'revenue'
 ]
