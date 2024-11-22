@@ -17,6 +17,7 @@ from final_answer import get_final_answer, get_final_answer_naive
 from datasets import load_dataset
 from typing import List, Tuple, Dict
 import os, json
+import argparse
 
 
 class SchemaGenerator():
@@ -45,7 +46,6 @@ class SchemaGenerator():
     # STEP 1: find the schema and keywords for the user query, back-and-forth with user
     def run_generator(self) -> None:
         while True:
-            self.user_query = input("What's the topic you want to generate a schema for? ")
             self.schema, self.L0_keywords, self.L1_keywords = generate_schema_with_levels(self.user_query)
             print("Generated schema:", self.schema)
             user_feedback = input("Confirm if you want to start retrieval with this schema? (yes/no)")
@@ -126,14 +126,18 @@ class SchemaGenerator():
             article_indices=None                  # very naive, don't use article_indices
         )
 
-    def run_single(self, compare: bool = False):
+    def run_single(self, user_query: str = None, snapshot_dir: str = "snapshot", compare: bool = False):
         self.reset()
+        if self.user_query is not None:
+            self.user_query = user_query
+        else:
+            self.user_query = input("What's the topic you want to generate a schema for? ")
         self.run_generator()
         self.run_retrieval_and_fill()
         self.final_answer()
         if compare:
             self.run_single_naive()
-        self.snapshot("snapshot_full")
+        self.snapshot(snapshot_dir)
 
     # for users to submit multiple queries, not used for now, directly call run_single for single-query
     def run(self):
@@ -213,5 +217,10 @@ class SchemaGenerator():
         self.answer_very_naive = ""
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--query', type=str, default=None, nargs="+", help="User query to generate schema")
+    parser.add_argument('--topic', type=str, default="snapshot", help="Snapshot name to save")
+    args = parser.parse_args()
+
     schema_generator = SchemaGenerator()
-    schema_generator.run_single(compare=True)
+    schema_generator.run_single(compare=True, user_query=args.query, snapshot_dir=args.topic)
