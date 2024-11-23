@@ -1,4 +1,4 @@
-KEYWORD_PROMPT = f'''
+KEYWORD_PROMPT_FROM_ARTICLE = f'''
 You are a virtual assistance model and you need to read the given text and generate a list of keywords that best describe the text.
 Notice you need to both summarize the text and generate a list of keywords, separated by commas for example: "investment, growth, innovation".
 Don't include any other information in the output other than the keywords. Max output 20 keywords. Each keyword should be in natural language,
@@ -6,6 +6,53 @@ for instance, write "venture capital" instead of "VentureCapital" or "ventureCap
 Finally, don't include any keyword that is too general, such as "u.s.", "technology"; or too vague, such as "time", "people". Also, split the
 keywords when you can. For instance, if the keyword is "u.s. supreme court", you should split them into 2 keywords, "u.s." and "supreme court".
 Never include keywords more than 3 terms. Split them or remove them.
+'''
+
+KEYWORD_PROMPT_FROM_QUERY_L0 = '''
+You are a virtual assistance model and you need to generate up to {num_keywords} most relevant keywords based on a user query.
+Your keywords will be used for sub-string filtering, so be as concise and informative as possible. For example, if the user query is
+"What are the financial trends in the technology sector in the U.S.?", the keywords should be "u.s." and "tech". Notice these 2 keywords
+are most likely to retrieve all relevant articles in sub-string filtering. In general, you should prioritize recall over precision.
+Be aware of the nature of sub-string filtering: if your query is "technology" instead of "tech", you might miss some relevant articles,
+so keep the strings as short as possible and as informative as possible (use substring abbreviations when available).
+The keywords should be comma-separated, for example: "u.s., tech". Don't include any other information other than the keywords.
+'''
+
+KEYWORD_PROMPT_FROM_QUERY_L1 = '''
+You are an assistant to extract relevant 0 to 5 keywords based on user's answer to a question. Your keywords should clearly
+summarize user's intent and should be as concise as possible. For instance, if the question is:
+
+"Do you want to cover specific demographics such as age groups, ethnicities, or political affiliations?"
+
+If the user's answer is: "Any demographic", then you shouldn't generate any keyword since the user is not providing any specific
+or extra information. However, if the user's answer is: "Asians", then you should generate a keyword "Asian". Finally, is the user's
+response is "Hispanic or White", then you should generate 2 keywords "Hispanic" and "White".
+
+
+Another example for question: "What metrics are you interested in analyzing for financial trends? (e.g., revenue, profit, stock, R&D)"
+
+If the users answer is "all metrics", then you can either generate no keywords since user is not providing any specific information. Or,
+since the question already contains examples, you can generate the keywords "revenue, profit, stock, R&D".
+
+
+Also notice your keywords will be used for substring filtering, so be as concise and informative as possible. For instance, you should use
+"asian" instead of "asians" since the former one will retrieve the most relevant articles. After make sure you are summarizing user's intent,
+prioritize recall over precision. Don't include any other information other than the keywords. Keywords should be comma-separated in format
+keyword 1, keyword 2, ...
+'''
+
+LLM_CHECK_ARTICLE_MATCH_KEYWORDS_PROMPT = '''
+You are a expert document reviewer and you need to carefully check if the article is strictly about all of the given keywords at the same time.
+For instance, if the keywords are "u.s., tech", then the article should be strictly about both "u.s." and "tech" at the same time.
+As a counter example, if the article is about "u.s." and "medical" but nothing about "tech", it is not a simultaneous match.
+Some articles might be tricky, for instance, the keywords are "U.S., 2024, election", while article is about "Mexico 2024 election" but can contain
+the keyword "u.s." or briefly discuss the U.S. election. In this case, it is not a match since the article is not strictly about the keywords, it is
+largerly focused on a different topic or event. However, for the same keywords "U.S., 2024, election", if the article is about unemployment in the U.S.
+and mentions it could impact the 2024 election, then it is a match since despite the article only briefly mentions the election, it is about a highly
+relevant event.
+
+You should return "True" if the article is strictly about all of the given keywords at the same time, and "False" otherwise.
+Return a single boolean value, no other information, no explaination needed.
 '''
 
 # Define the initial prompt for schema generation
@@ -33,7 +80,6 @@ Instructions:
 
 # Example schema provided separately 
 GENERATE_SCHEMA_EXAMPLE =  '''
-
 class Battle(ABC): 
     """
     A "Battle" event is defined as a violent interaction between two organized armed groups at a particular time and location. "Battle" can occur between armed and organized state, non-state, and external groups,
@@ -136,7 +182,7 @@ Based on the user's initial input:
 
 {user_input}
 
-Generate 5 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
+Generate 2 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
 """
 
 
@@ -175,10 +221,7 @@ The initial schema is:
           STOCK_PERFORMANCE = "Stock Performance"
           INVESTMENT_TRENDS = "Investment Trends"
       
-      metrics: List[FinancialMetric] = Field(
-          [FinancialMetric.REVENUE_GROWTH, FinancialMetric.PROFIT_MARGINS, FinancialMetric.STOCK_PERFORMANCE, FinancialMetric.INVESTMENT_TRENDS],
-          description="List of all selected financial metrics"
-      )
+      metrics: List[FinancialMetric] = Field([FinancialMetric.REVENUE_GROWTH, FinancialMetric.PROFIT_MARGINS, FinancialMetric.STOCK_PERFORMANCE, FinancialMetric.INVESTMENT_TRENDS], description="List of all selected financial metrics")
       ```
 
 ### Example Applications
@@ -222,7 +265,12 @@ The initial schema is:
 - **User Response**:
   {user_response}
 
-Update the schema accordingly, ensuring all modifications adhere strictly to the instructions and provided examples.
+Update the schema accordingly, ensuring all modifications adhere strictly to the instructions and provided examples. Don't include any other information in the output other than the updated schema.
+Finally, make sure that each field are still in one line, no \\n. For instance use `location: Location = Field(..., description="")`. Instead of `location: Location = Field(\n...,\n description=""\n)` or
+location: Location = Field(
+    ...,
+    description=""
+)
 """
 
 

@@ -51,6 +51,7 @@ def contain_at_least_n_keywords(text: str, keywords: List[str], n: int) -> bool:
 
 def extract_enforced_fields(schema_definition: str) -> Dict[str, str]:
     enforced_fields = {}
+    return enforced_fields
     for line in schema_definition.split("\n"):
         # detect anything like `Field(True, description="")`, instead of unfilled Field(..., description="")
         if "Field(" in line and "..." not in line and "None" not in line:

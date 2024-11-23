@@ -28,7 +28,7 @@ class SchemaGenerator():
             self.dataset = load_dataset(DATA_PATH)['train']
         except:
             get_dataset(year=2024, store_and_filter=True, data_path=DATA_PATH)['train']  # download, process, store
-        self.max_articles = 3
+        self.max_articles = 30
 
         self.user_query: str = EXAMPLE_QUERY
         self.schema: str = EXAMPLE_SCHEMA  # this is a string contains both base class and child classes
@@ -67,7 +67,7 @@ class SchemaGenerator():
                 self.dataset,
                 self.L0_keywords,
                 self.L1_keywords,
-                min_occurrences=6,
+                min_occurrences=3,
                 max_articles=self.max_articles,
                 enforced_fields=self.enforced_fields,
                 collect_user_feedback=collect_user_feedback
@@ -126,7 +126,7 @@ class SchemaGenerator():
             article_indices=None                  # very naive, don't use article_indices
         )
 
-    def run_single(self, user_query: str = None, snapshot_dir: str = "snapshot", compare: bool = False):
+    def run_single(self, user_query: str = None, snapshot_dir: str = "snapshot", compare: bool = False) -> None:
         self.reset()
         if self.user_query is not None:
             self.user_query = user_query
@@ -140,7 +140,7 @@ class SchemaGenerator():
         self.snapshot(snapshot_dir)
 
     # for users to submit multiple queries, not used for now, directly call run_single for single-query
-    def run(self):
+    def run(self) -> None:
         while True:
             self.run_single()
             user_feedback = input("Do you want to generate another schema? (yes/no)")
@@ -221,6 +221,6 @@ if __name__ == "__main__":
     parser.add_argument('--query', type=str, default=None, nargs="+", help="User query to generate schema")
     parser.add_argument('--topic', type=str, default="snapshot", help="Snapshot name to save")
     args = parser.parse_args()
-
+    snapshot_dir = args.topic if args.topic.startswith("snapshot") else f"snapshot_{args.topic}"
     schema_generator = SchemaGenerator()
-    schema_generator.run_single(compare=True, user_query=args.query, snapshot_dir=args.topic)
+    schema_generator.run_single(compare=True, user_query=' '.join(args.query), snapshot_dir=snapshot_dir)
