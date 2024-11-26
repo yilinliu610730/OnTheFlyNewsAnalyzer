@@ -4,3 +4,5 @@ dataset/filtered_data/train/*
 snapshot*/
 *.txt
 __pycache__/
+.chainlit
+chainlit.md
