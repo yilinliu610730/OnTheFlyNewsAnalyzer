@@ -5,7 +5,7 @@ from generate_schema import generate_initial_schema, generate_L0_keywords
 from refine_schema_from_instances import refine_schema_with_instance_feedback
 from retrieve_and_fill import get_schema_filled
 from common.utils import process_schema, extract_enforced_fields, get_dataset
-from final_answer import get_final_answer
+from final_answer import get_final_answer, get_final_answer_naive
 from refine_schema import generate_L1_keywords, generate_follow_up_questions
 from common.prompts import GENERATE_SCHEMA_INSTR, REFINE_SCHEMA_PROMPT_TEMPLATE
 from common.utils import OPENAI_API_KEY
@@ -111,12 +111,12 @@ async def main():
         enforced_fields = extract_enforced_fields(initial_schema)
         schema_by_class, _ = process_schema(refined_schema, add_base_class=True)
         schema_by_class_nobase, base_class = process_schema(refined_schema, add_base_class=False)
-        max_articles = 5
+        max_articles = 50
         DATA_PATH = "./dataset/filtered_data"
         try:
             dataset = load_dataset(DATA_PATH)['train']
         except:
-            get_dataset(year=2024, store_and_filter=True, data_path=DATA_PATH)['train']  # download, process, store
+            dataset = get_dataset(year=2024, store_and_filter=True, data_path=DATA_PATH)['train']  # download, process, store
         refined_schema = initial_schema
 
         # Step 6: Retrieve and refine schema instances in a loop
@@ -149,10 +149,46 @@ async def main():
                     topic
                 )
                 answer += f"Perspective {schema_class}:\n{perspective_answer}\n"
-
+            # also save to txt
+            with open("answer_schema.txt", "w") as f:
+                f.write(answer)
             await cl.Message(content=answer).send()
         except Exception as e:
             await cl.Message(content=f"Error generating final answer: {str(e)}").send()
+            return
+        
+        # Step 8: Naive Answer Generation
+        try:
+            naive_answer = f'Here is the naive answer to your query "{topic}":\n'
+            naive_answer += get_final_answer_naive(
+                dataset,
+                max_articles=max_articles,
+                user_query=topic,
+                article_indices=article_indices
+            )
+            # also save to txt
+            with open("answer_naive.txt", "w") as f:
+                f.write(naive_answer)
+            await cl.Message(content=naive_answer).send()
+        except Exception as e:
+            await cl.Message(content=f"Error generating naive answer: {str(e)}").send()
+            return
+        
+        # Step 9: VERY naive answer generation
+        try:
+            naive_answer = f'Here is the VERY naive answer to your query "{topic}":\n'
+            naive_answer += get_final_answer_naive(
+                dataset,
+                max_articles=max_articles,
+                user_query=topic,
+                article_indices=None  # No specific articles, very naive
+            )
+            # also save to txt
+            with open("answer_very_naive.txt", "w") as f:
+                f.write(naive_answer)
+            await cl.Message(content=naive_answer).send()
+        except Exception as e:
+            await cl.Message(content=f"Error generating VERY naive answer: {str(e)}").send()
             return
 
         # End the session

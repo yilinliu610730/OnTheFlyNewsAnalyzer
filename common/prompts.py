@@ -182,7 +182,7 @@ Based on the user's initial input:
 
 {user_input}
 
-Generate 2 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
+Generate 5 unique follow-up questions that clarify or refine details needed for schema generation. Each question should focus on a different aspect of the user's requirements, such as timeframe, specific segments, financial metrics, and geographic scope. Ensure each question is unique, and avoid repeating similar questions.
 """
 
 

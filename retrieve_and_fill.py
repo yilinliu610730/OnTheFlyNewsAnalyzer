@@ -88,7 +88,7 @@ def get_schema_filled(
 
     # article index to article content
     articles: Dict[int, str] = {}
-    for i, row in tqdm(enumerate(dataset)):
+    for i, row in tqdm(enumerate(dataset), total=len(dataset)):
         article_contents = row_to_string(row, to_lower=True)
         if len(articles) >= max_articles:
             break
