@@ -17,7 +17,7 @@ openai.api_key = OPENAI_API_KEY
 async def refine_schema_with_levels_chainlit(initial_schema, instructions, L0_keywords, user_input):
     # Generate initial follow-up questions based on user input
     follow_up_questions = generate_follow_up_questions(user_input)
-    await cl.Message(content="Generated Follow-Up Questions:\n" + "\n".join(follow_up_questions)).send()
+    # await cl.Message(content="Here are a few questions to help refine the schema:\n" + "\n".join(follow_up_questions)).send()
 
     all_L1_keywords = set()  # Use a set to handle duplicates
 
@@ -25,12 +25,12 @@ async def refine_schema_with_levels_chainlit(initial_schema, instructions, L0_ke
     for idx, follow_up_question in enumerate(follow_up_questions):
         # Ask user the follow-up question in Chainlit
         user_response_message = await cl.AskUserMessage(
-            content=f"Follow-up Question {idx + 1}: {follow_up_question}\n(Type 'exit' to finish at any time)",
+            content=f"Let's dive a bit deeper! In order to better refine our response, could you please answer this question?\n{follow_up_question}\n(You can type 'exit' to stop anytime)",
             timeout=300
         ).send()
 
         if not user_response_message or user_response_message['output'].strip().lower() == "exit":
-            await cl.Message(content="Refinement process exited.").send()
+            await cl.Message(content="Thanks for your input! The refinement process has been exited.").send()
             break
 
         user_response = user_response_message['output'].strip()
@@ -60,7 +60,7 @@ async def refine_schema_with_levels_chainlit(initial_schema, instructions, L0_ke
 
         # Update the schema with the refined version
         initial_schema = refine_response["choices"][0]["message"]["content"].strip()
-        await cl.Message(content=f"Updated Schema:\n{initial_schema}").send()
+        await cl.Message(content=f"Great! The schema has been updated:\n{initial_schema}").send()
 
     # Remove any overlap between L0 and L1 keywords
     for l0 in L0_keywords + ['']:
@@ -74,12 +74,12 @@ async def refine_schema_with_levels_chainlit(initial_schema, instructions, L0_ke
 async def main():
     try:
         # Welcome message
-        await cl.Message(content="Welcome to the Schema Generator Chatbot!").send()
+        await cl.Message(content="Hello! 👋 Welcome to the On The Fly News Seeker Chatbot! I'm here to help you understand global events and news based on your query. Ask me anything! 😊").send()
 
         # Step 1: Ask the user for a topic
-        user_query = await cl.AskUserMessage(content="What topic would you like to generate a schema for?", timeout=300).send()
+        user_query = await cl.AskUserMessage(content="What topic or question would you like to explore today?", timeout=300).send()
         if not user_query or not user_query.get('output'):
-            await cl.Message(content="No input received. Please restart and provide a topic.").send()
+            await cl.Message(content="Oops, I didn't catch that! Could you please share a topic or a question you have?").send()
             return
 
         # Extract user input
@@ -87,25 +87,25 @@ async def main():
 
         # Step 2: Generate initial schema
         initial_schema = generate_initial_schema(topic)
-        await cl.Message(content=f"Generated Initial Schema:\n{initial_schema}").send()
+        await cl.Message(content=f"Awesome! I’ve generated an initial schema for your topic:\n{initial_schema}").send()
 
         # Step 3: Generate L0 keywords
         L0_keywords = generate_L0_keywords(topic)
-        await cl.Message(content=f"Generated L0 Keywords:\n{', '.join(L0_keywords)}").send()
+        # await cl.Message(content=f"Here are the key keywords related to your topic:\n{', '.join(L0_keywords)}").send()
 
         # Step 4: Confirm to proceed
         feedback = await cl.AskUserMessage(
-            content="Do you want to proceed with refining the schema? (yes/no)", timeout=300
+            content="Does this look good to you? Would you like to refine the schema further? (yes/no)", timeout=300
         ).send()
         if not feedback or feedback['output'].lower() not in ["yes", "y"]:
-            await cl.Message(content="Session ended as per your choice.").send()
+            await cl.Message(content="No worries, feel free to reach out whenever you want to refine the schema! 😊").send()
             return
 
         # Step 5: Refine schema with follow-up questions in Chainlit
         refined_schema, L0_keywords, L1_keywords = await refine_schema_with_levels_chainlit(
             initial_schema, GENERATE_SCHEMA_INSTR, L0_keywords, topic
         )
-        await cl.Message(content=f"Final Refined Schema:\n{refined_schema}").send()
+        await cl.Message(content=f"Great! Here is the final refined schema:\n{refined_schema}").send()
 
         # Step 5: Initialize variables for schema retrieval and refinement
         enforced_fields = extract_enforced_fields(initial_schema)
@@ -133,30 +133,29 @@ async def main():
                 collect_user_feedback=False
             )
 
-            await cl.Message(content=f"Retrieved and filled schema instances:\n{filled_schemas_by_class}").send()
+            await cl.Message(content=f"Here's what I found for your query:\n{filled_schemas_by_class}").send()
 
         except Exception as e:
-            await cl.Message(content=f"Error during retrieval and refinement: {str(e)}").send()
+            await cl.Message(content=f"Oops! Something went wrong during the retrieval process. Here's the error: {str(e)}").send()
             return
 
-        # Step 7: Generate the final answer
+        # Step 7: VERY naive answer generation
         try:
-            answer = f'Here is the final answer to your query "{topic}":\n'
-            for schema_class, filled_schemas in filled_schemas_by_class.items():
-                perspective_answer = get_final_answer(
-                    schema_by_class[schema_class],
-                    filled_schemas,
-                    topic
-                )
-                answer += f"Perspective {schema_class}:\n{perspective_answer}\n"
+            naive_answer = f'Here is the VERY naive answer to your query "{topic}":\n'
+            naive_answer += get_final_answer_naive(
+                dataset,
+                max_articles=max_articles,
+                user_query=topic,
+                article_indices=None  # No specific articles, very naive
+            )
             # also save to txt
-            with open("answer_schema.txt", "w") as f:
-                f.write(answer)
-            await cl.Message(content=answer).send()
+            with open("answer_very_naive.txt", "w") as f:
+                f.write(naive_answer)
+            await cl.Message(content=naive_answer).send()
         except Exception as e:
-            await cl.Message(content=f"Error generating final answer: {str(e)}").send()
+            await cl.Message(content=f"Error generating VERY naive answer: {str(e)}").send()
             return
-        
+    
         # Step 8: Naive Answer Generation
         try:
             naive_answer = f'Here is the naive answer to your query "{topic}":\n'
@@ -174,25 +173,26 @@ async def main():
             await cl.Message(content=f"Error generating naive answer: {str(e)}").send()
             return
         
-        # Step 9: VERY naive answer generation
+        # Step 9: Generate the final answer
         try:
-            naive_answer = f'Here is the VERY naive answer to your query "{topic}":\n'
-            naive_answer += get_final_answer_naive(
-                dataset,
-                max_articles=max_articles,
-                user_query=topic,
-                article_indices=None  # No specific articles, very naive
-            )
+            answer = f'Here is the final answer to your query "{topic}":\n'
+            for schema_class, filled_schemas in filled_schemas_by_class.items():
+                perspective_answer = get_final_answer(
+                    schema_by_class[schema_class],
+                    filled_schemas,
+                    topic
+                )
+                answer += f"Perspective {schema_class}:\n{perspective_answer}\n"
             # also save to txt
-            with open("answer_very_naive.txt", "w") as f:
-                f.write(naive_answer)
-            await cl.Message(content=naive_answer).send()
+            with open("answer_schema.txt", "w") as f:
+                f.write(answer)
+            await cl.Message(content=answer).send()
         except Exception as e:
-            await cl.Message(content=f"Error generating VERY naive answer: {str(e)}").send()
+            await cl.Message(content=f"Error generating final answer: {str(e)}").send()
             return
-
+        
         # End the session
-        await cl.Message(content="Thank you for using the Schema Generator Chatbot!").send()
+        await cl.Message(content="Thank you for using the Schema Generator Chatbot! 😊 Have a wonderful day!").send()
 
     except Exception as e:
-        await cl.Message(content=f"An unexpected error occurred: {str(e)}").send()
+        await cl.Message(content=f"Oops! An unexpected error occurred. Here's the message: {str(e)}").send()
