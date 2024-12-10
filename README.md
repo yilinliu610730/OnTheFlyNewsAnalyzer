@@ -2,7 +2,7 @@
 ## Install
 ```
 pip install openai
-pip install chaimlit
+pip install chainlit
 pip install tqdm
 pip install datasets
 ```
@@ -25,6 +25,14 @@ chainlit run app.py -w
 ```
 
 Follow the opened localhost webpage to begin! Notice that Chainlit occassionally fails on the web-end, but results for final answer will still be saved locally.
+
+Once the Chainlit application finishes running, you can find the final answer saved locally in one of the text files (see screenshot for the files). The files are as follows:
+
+- `answer_naive.txt`
+- `answer_schema.txt`
+- `answer_very_naive.txt`
+
+You can check these text files for the results of the final answer.
 
 ## Running from Terminal
 
