@@ -1,4 +1,11 @@
 # OnTheFlyNewsAnalyzer
+## Install
+```
+pip install openai
+pip install chaimlit
+pip install tqdm
+pip install datasets
+```
 
 ## Dataset Preparation
 We use a local copy of CCNews dataset. The first run of command below will induce downloading, filtering, and storing dataset locally. We use CCNews data in 2024 in language of EN. After downloading, the files will be stored in default to shards such as:
