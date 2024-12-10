@@ -33,4 +33,4 @@ Run in terminal:
 ```
 python main.py --query YOUR QUERY --topic ANY
 ```
-Them provide your answer directly in the terminal. Running from the terminal will also store extra information such as keywords used, Schema definition, Schema instance filled with source article index, etc.
+Then provide your answer directly in the terminal. Running from the terminal will also store extra information such as keywords used, Schema definition, Schema instance filled with source article index, etc.
